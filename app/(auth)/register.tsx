@@ -19,6 +19,7 @@ import AuthInput from "../components/AuthInput";
 export default function Register() {
   const router = useRouter();
 
+  const [username, setUsername] = useState("");
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +37,7 @@ export default function Register() {
   );
 
   const canSubmit =
+    username.trim() &&
     !emailError &&
     !passError &&
     !confirmError &&
@@ -53,6 +55,7 @@ export default function Register() {
     if (!canSubmit || loading) return;
 
     register({
+      user_name: username,
       full_name: fullname,
       email,
       password,
@@ -68,7 +71,14 @@ export default function Register() {
       >
         <View style={styles.container}>
           <Text style={styles.title}>Đăng ký</Text>
-
+          <AuthInput
+            label="Username"
+            value={username}
+            onChangeText={setUsername}
+            leftIcon="at-outline"
+            placeholder="Nhập username"
+            editable={!loading}
+          />
           <AuthInput
             label="Tên"
             value={fullname}
@@ -77,7 +87,6 @@ export default function Register() {
             placeholder="Nhập Họ và Tên"
             editable={!loading}
           />
-
           <AuthInput
             label="Email"
             value={email}
@@ -90,7 +99,6 @@ export default function Register() {
             error={emailError}
             showError={touchedEmail}
           />
-
           <AuthInput
             label="Mật khẩu"
             value={password}
@@ -103,7 +111,6 @@ export default function Register() {
             error={passError}
             showError={touchedPassword}
           />
-
           <AuthInput
             label="Xác nhận mật khẩu"
             value={confirm}
@@ -116,9 +123,7 @@ export default function Register() {
             error={confirmError}
             showError={touchedConfirm}
           />
-
           {!!apiError && <Text style={styles.apiError}>{apiError}</Text>}
-
           <TouchableOpacity
             style={[styles.primaryBtn, (!canSubmit || loading) && { opacity: 0.6 }]}
             disabled={!canSubmit || loading}
@@ -129,7 +134,6 @@ export default function Register() {
               {loading ? "Đang đăng ký..." : "Đăng Ký"}
             </Text>
           </TouchableOpacity>
-
           <View style={styles.bottomRow}>
             <Text style={styles.muted}>Đã có tài khoản? </Text>
             <TouchableOpacity disabled={loading} onPress={() => router.replace("/(auth)/login")}>
@@ -146,14 +150,14 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   bg: { flex: 1 },
 
-  container: { flex: 1, paddingHorizontal: 22, paddingTop: 210 },
+  container: { flex: 1, paddingHorizontal: 22, paddingTop: 205 },
 
   title: { marginTop: 16, fontSize: 24, fontWeight: "800", textAlign: "center" },
 
   apiError: { color: "#ff3b30", marginTop: 10, textAlign: "center" },
 
   primaryBtn: {
-    marginTop: 18,
+    marginTop: 10,
     height: 52,
     backgroundColor: "#111",
     borderRadius: 14,

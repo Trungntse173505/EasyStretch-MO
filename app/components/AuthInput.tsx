@@ -63,21 +63,21 @@ export default function AuthInput({
 }
 
 const styles = StyleSheet.create({
-  label: { marginTop: 14, marginBottom: 8, color: "#111", fontWeight: "600" },
+  label: { marginTop: 10, marginBottom: 8, color: "#111", fontWeight: "600" },
 
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     borderWidth: 1,
     borderColor: "#E7E7E7",
     borderRadius: 14,
     paddingHorizontal: 14,
-    height: 52,
+    height: 40,
     backgroundColor: "#fff",
   },
   inputWrapError: { borderColor: "#ff6b6b" },
   input: { flex: 1, color: "#111" },
 
-  errorText: { color: "#ff3b30", marginTop: 6, fontSize: 12 },
+  errorText: { color: "#ff3b30", marginTop: 4, fontSize: 12 },
 });
