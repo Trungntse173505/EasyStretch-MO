@@ -26,11 +26,23 @@ export const useLogin = () => {
         setLoading(true);
         const res = await authApi.login({ email: email.trim(), password });
         const token = res?.data?.token;
-        if (token) await AsyncStorage.setItem("ACCESS_TOKEN", token);
-        router.replace("/(auth)/onboarding");
+        const user = res?.data?.data;
+        console.log("FULL DATA:", res.data); 
+        console.log("USER DATA:", user);      
+        if (token) {
+          await AsyncStorage.setItem("ACCESS_TOKEN", token);
+          await AsyncStorage.setItem("USER_INFO", JSON.stringify(user));
+        }
+        const hasProfile = !!(
+          user?.height_cm || 
+          user?.weight_kg || 
+          user?.goal || 
+          user?.gender
+        );
+        router.replace(hasProfile ? "/(tabs)" : "/(auth)/onboarding");
       } catch (e: any) {
         setApiError(mapLoginError(e));
-        return; 
+        return;
       } finally {
         setLoading(false);
       }

@@ -1,11 +1,21 @@
+import { useAuthObserver } from "@/hooks/auth/useAuthObserver";
 import { Stack } from "expo-router";
+import { ActivityIndicator, Platform, StatusBar, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { StatusBar, Platform } from "react-native";
 
 export default function RootLayout() {
+  const { isReady } = useAuthObserver();
+
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
-      {/* Để status bar không đè lên UI */}
       <StatusBar
         translucent={false}
         backgroundColor={Platform.OS === "android" ? "#FFFFFF" : undefined}

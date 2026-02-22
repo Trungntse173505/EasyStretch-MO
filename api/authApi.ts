@@ -14,6 +14,13 @@ export interface Register{
     role: string;
 }
 
+export interface UpdateUser {
+    height_cm: number;
+    weight_kg: number;
+    gender: string;
+    goal: string;
+}
+
 
 const authApi ={
     login: (data: Login) =>{
@@ -21,6 +28,9 @@ const authApi ={
     },
     register: (data: Register) =>{
         return axiosClient.post('/user/signup', data);
+    },
+    updateInfo: (data: UpdateUser) => {
+        return axiosClient.patch('/user/update', data);
     }
 }
 

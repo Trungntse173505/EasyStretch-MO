@@ -43,7 +43,7 @@ export default function Onboarding() {
           <TouchableOpacity
             style={styles.btn}
             activeOpacity={0.85}
-            onPress={() => router.replace("/age")}
+            onPress={() => router.push("/age")}
           >
             <Text style={styles.btnText}>Bắt đầu ngay</Text>
           </TouchableOpacity>
