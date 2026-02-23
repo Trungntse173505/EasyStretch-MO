@@ -3,15 +3,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 
-const mapLoginError = (e: any) => {
-  const msg = e?.response?.data?.message;
-  if (typeof msg === "string" && msg.trim()) return msg;
-  const status = e?.response?.status;
-  if (status === 401) return "Tài khoản không tồn tại";
-  if (status === 400) return "Mật khẩu không chính xác";
-  return "Đăng nhập thất bại";
-};
-
 export const useLogin = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -24,30 +15,36 @@ export const useLogin = () => {
       try {
         setApiError("");
         setLoading(true);
-        const res = await authApi.login({ email: email.trim(), password });
-        const token = res?.data?.token;
-        const user = res?.data?.data;
-        console.log("FULL DATA:", res.data); 
-        console.log("USER DATA:", user);      
+
+        const loginRes = await authApi.login({ email: email.trim(), password });
+        const token = loginRes.data?.token;
+
         if (token) {
           await AsyncStorage.setItem("ACCESS_TOKEN", token);
-          await AsyncStorage.setItem("USER_INFO", JSON.stringify(user));
+          const profileRes = await authApi.getInfo();
+          const user = profileRes.data?.data;
+          if (user) {
+            await AsyncStorage.setItem("USER_INFO", JSON.stringify(user));
+            const hasProfile = !!(user?.height_cm && user?.weight_kg);
+
+            if (hasProfile) {
+              router.replace("/(tabs)");
+            } else {
+              router.replace("/(auth)/onboarding");
+            }
+          }
+        } else {
+          setApiError("Không nhận được mã xác thực từ máy chủ.");
         }
-        const hasProfile = !!(
-          user?.height_cm || 
-          user?.weight_kg || 
-          user?.goal || 
-          user?.gender
-        );
-        router.replace(hasProfile ? "/(tabs)" : "/(auth)/onboarding");
       } catch (e: any) {
-        setApiError(mapLoginError(e));
-        return;
+        console.error("LỖI LOGIN CHI TIẾT:", e.response?.data || e.message);
+        setApiError(e.response?.data?.message || "Đăng nhập thất bại");
       } finally {
         setLoading(false);
       }
     },
     [loading, router]
   );
+
   return { login, loading, apiError, setApiError };
 };

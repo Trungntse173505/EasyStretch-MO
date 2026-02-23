@@ -1,38 +1,59 @@
 import axiosClient from './axiosClient';
 
-
-export interface Login{
-    email: string;
-    password: string;
+// --- Interfaces ---
+export interface Login {
+  email: string;
+  password: string;
 }
 
-export interface Register{
-    user_name: string;
-    full_name: string;
-    email: string;
-    password: string;
-    role: string;
+interface LoginResponse {
+  success: boolean;
+  code: number;
+  message: string;
+  token: string; 
 }
 
 export interface UpdateUser {
-    height_cm: number;
-    weight_kg: number;
-    gender: string;
-    goal: string;
+  height_cm: number;
+  weight_kg: number;
+  gender: string;
+  goal: string;
 }
 
-
-const authApi ={
-    login: (data: Login) =>{
-        return axiosClient.post('/user/signin', data);
-    },
-    register: (data: Register) =>{
-        return axiosClient.post('/user/signup', data);
-    },
-    updateInfo: (data: UpdateUser) => {
-        return axiosClient.patch('/user/update', data);
-    }
+export interface UserData {
+  id: string;
+  full_name: string;
+  email: string | null;
+  gender: string | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  goal: string | null;
+  role: string;
 }
 
+interface ApiResponse<T> {
+  success: boolean;
+  code: number;
+  message: string;
+  data: T;
+}
+
+const authApi = {
+  login: (data: Login) => {
+    return axiosClient.post<LoginResponse>('/users/signin', data);
+  },
+  
+  register: (data: any) => {
+    return axiosClient.post<ApiResponse<any>>('/users/signup', data);
+  },
+  
+  updateInfo: (data: UpdateUser) => {
+    return axiosClient.patch<ApiResponse<UserData>>('/users/update', data);
+  },
+  
+  getInfo: () => {
+    return axiosClient.get<ApiResponse<UserData>>('/users/profile');
+  }
+};
 
 export default authApi;

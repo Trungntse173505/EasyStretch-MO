@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router"; // 1. Import useRouter
 import React from "react";
 import { Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ExploreScreen() {
+  const router = useRouter(); // 2. Khởi tạo router
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -27,7 +30,11 @@ export default function ExploreScreen() {
 
         {/* PHẦN DINH DƯỠNG (MỚI) */}
         <Text style={styles.sectionTitle}>Dinh Dưỡng</Text>
-        <TouchableOpacity style={styles.nutritionCard}>
+        {/* 3. Thêm sự kiện onPress để điều hướng sang folder nutrition */}
+        <TouchableOpacity 
+          style={styles.nutritionCard} 
+          onPress={() => router.push('/(nutrition)')}
+        >
           {/* Cột chỉ số bên trái */}
           <View style={styles.nutritionStats}>
             <View style={styles.statItem}>

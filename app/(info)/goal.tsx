@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // Thêm để xóa token lỗi
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -16,16 +17,24 @@ const OPTIONS = [
 
 export default function GoalScreen() {
   const router = useRouter();
-  const { data } = useOnboarding(); // Dữ liệu từ 3 màn trước
-  const { updateInfo, loading, apiError } = useUpdateInfo(); // Hook API
+  const { data } = useOnboarding();
+  const { updateInfo, loading, apiError } = useUpdateInfo();
   const [selected, setSelected] = useState("weight");
 
+  // Hàm để thoát khỏi trạng thái kẹt Token
+  const handleSkipOrLogout = async () => {
+    try {
+      await AsyncStorage.clear(); // Xóa sạch Token lỗi
+      router.replace("/(auth)/login"); // Ép quay về Login
+    } catch (e) {
+      console.error("Lỗi khi xóa dữ liệu:", e);
+    }
+  };
+
   const handleFinish = async () => {
-    const selectedLabel =
-    OPTIONS.find((o) => o.id === selected)?.label || "";
-    // Gom dữ liệu để gửi đi
+    const selectedLabel = OPTIONS.find((o) => o.id === selected)?.label || "";
     const payload = {
-      height_cm: 170,
+      height_cm: 170, // Bạn có thể lấy từ data.height nếu có trong context
       weight_kg: data.weight || 60,
       gender: data.gender || "male",
       goal: selectedLabel,
@@ -41,6 +50,12 @@ export default function GoalScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={18} color="#111" />
         </TouchableOpacity>
+        
+        {/* Nút Bỏ qua nằm cạnh Step Pill */}
+        <TouchableOpacity style={styles.skipBtn} onPress={handleSkipOrLogout}>
+          <Text style={styles.skipText}>Bỏ qua</Text>
+        </TouchableOpacity>
+
         <View style={styles.stepPill}>
           <Text style={styles.stepText}>4 of 4</Text>
         </View>
@@ -53,7 +68,11 @@ export default function GoalScreen() {
           {OPTIONS.map((o) => {
             const active = selected === o.id;
             return (
-              <TouchableOpacity key={o.id} style={[styles.item, active && styles.itemActive]} onPress={() => setSelected(o.id)}>
+              <TouchableOpacity 
+                key={o.id} 
+                style={[styles.item, active && styles.itemActive]} 
+                onPress={() => setSelected(o.id)}
+              >
                 <View style={styles.itemLeft}>
                   <View style={[styles.iconBox, active && styles.iconBoxActive]}>
                     <Ionicons name={o.icon} size={16} color={active ? "#fff" : "#111"} />
@@ -68,7 +87,6 @@ export default function GoalScreen() {
           })}
         </View>
 
-        {/* Thông báo lỗi nếu API fail */}
         {apiError ? <Text style={styles.errorText}>{apiError}</Text> : null}
 
         <TouchableOpacity style={styles.primaryBtn} onPress={handleFinish} disabled={loading}>
@@ -90,6 +108,11 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   header: { paddingHorizontal: 16, paddingTop: 8, flexDirection: "row", alignItems: "center" },
   backBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: "#F3F4F6", justifyContent: "center", alignItems: "center" },
+  
+  // Style cho nút Bỏ qua
+  skipBtn: { marginLeft: 12, paddingVertical: 8, paddingHorizontal: 12 },
+  skipText: { fontSize: 14, fontWeight: "600", color: "#6B7280" },
+
   stepPill: { marginLeft: "auto", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: "#E8F0FF" },
   stepText: { fontSize: 14, fontWeight: "800", color: "#2563EB" },
   body: { flex: 1, paddingHorizontal: 16, paddingTop: 14 },

@@ -1,2 +1,2 @@
-const API_URL= "https://easystretch-bwexhggmbwgncnhb.japaneast-01.azurewebsites.net"
+const API_URL= "https://easystretch-be-2.vercel.app/"
 export default API_URL;

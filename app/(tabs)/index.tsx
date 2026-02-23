@@ -1,33 +1,56 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import { useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ImageBackground,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const POPULAR_WORKOUTS = [
-  { id: 1, title: "Phục hồi chấn thương đầu gối", time: "30 Video", image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800" },
-  { id: 2, title: "Phục hồi cho mẹ bầu sau sinh", time: "40 Video", image: "https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?w=800" },
-];
-
-const SCHEDULE_WORKOUTS = [
-  { id: 1, title: "Giãn cơ Cổ và Vai", duration: "Giữ mỗi bên 30 giây", level: "Intermediate", progress: 45, image: "https://images.unsplash.com/photo-1544367563-121910aaace0?w=400" },
-  { id: 2, title: "Giãn cơ Lưng Dưới", duration: "Giữ mỗi bên 1 phút", level: "Beginner", progress: 75, image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400" },
-  { id: 3, title: "Giãn cơ Ngực", duration: "20 lần x 3 hiệp", level: "Beginner", progress: 10, image: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400" },
-];
+// Import Hooks
+import { useCourses } from "../../hooks/course/useCourses";
+import { useExercisesClient } from "../../hooks/exercise/useExercisesClient"; // Hook mới
 
 export default function HomeScreen() {
+  const router = useRouter();
+
+  // Gọi API lấy Khóa học và Bài tập
+  const { courses, loading: loadingCourses, error: errorCourses, refetch: refetchCourses } = useCourses();
+  const { exercises, loading: loadingEx, error: errorEx, refetch: refetchEx } = useExercisesClient();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // Làm mới cả 2 API
+    await Promise.all([refetchCourses?.(), refetchEx?.()]);
+    setRefreshing(false);
+  }, [refetchCourses, refetchEx]);
+
+  // Hàm phụ trợ tính phút từ giây
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    return m > 0 ? `${m} phút` : `${seconds} giây`;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D4F93D" colors={["#D4F93D"]} />
+        }
+      >
+
         {/* HEADER */}
         <View style={styles.header}>
           <Text style={styles.greeting}>Chào buổi sáng 🔥</Text>
@@ -45,45 +68,69 @@ export default function HomeScreen() {
           <TextInput placeholder="Tìm kiếm" placeholderTextColor="#9CA3AF" style={styles.searchInput} />
         </View>
 
-        {/* POPULAR */}
+        {/* PHẦN 1: KHÓA TẬP LUYỆN PHỤ HỒI */}
         <Text style={styles.sectionTitle}>Khóa Tập Luyện Phục Hồi</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalList}>
-          {POPULAR_WORKOUTS.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.popularCard} activeOpacity={0.9}>
-              <ImageBackground source={{ uri: item.image }} style={styles.popularBg} imageStyle={{ borderRadius: 24 }}>
-                <View style={styles.cardOverlay} />
-                <View style={styles.playButton}>
-                  <Ionicons name="play" size={16} color="#000" style={{ marginLeft: 2 }} />
-                </View>
-                <View>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <View style={styles.cardTags}>
-                    <View style={styles.tag}><Ionicons name="time" size={10} color="#111" /><Text style={styles.tagText}>{item.time}</Text></View>
+        {loadingCourses && !refreshing ? (
+          <ActivityIndicator size="small" color="#D4F93D" style={{ marginVertical: 20 }} />
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalList}>
+            {courses.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.popularCard}
+                onPress={() => router.push({
+                  pathname: "/(course)/course-detail",
+                  params: { id: item.id, title: item.title, price: item.price, img_url: item.img_url }
+                })}
+              >
+                <ImageBackground source={{ uri: item.img_url }} style={styles.popularBg} imageStyle={{ borderRadius: 24 }}>
+                  <View style={styles.cardOverlay} />
+                  <View style={styles.playButton}><Ionicons name="play" size={16} color="#000" /></View>
+                  <View>
+                    <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                    <View style={styles.cardTags}>
+                      <View style={styles.tag}><Ionicons name="flash" size={10} color="#111" /><Text style={styles.tagText}>{item.level}</Text></View>
+                      <View style={styles.tag}><Text style={styles.tagText}>{item.price > 0 ? `${item.price.toLocaleString('vi-VN')} đ` : 'Miễn phí'}</Text></View>
+                    </View>
                   </View>
-                </View>
-              </ImageBackground>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                </ImageBackground>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
-        {/* SCHEDULE */}
+        {/* PHẦN 2: BÀI TẬP GIẢM ĐAU MỎI VAI GÁY (Dữ liệu từ API Exercises) */}
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Bài Tập Giảm Đau Mỏi Vai Gáy</Text>
         <View style={styles.verticalList}>
-          {SCHEDULE_WORKOUTS.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.scheduleItem} activeOpacity={0.9}>
-              <Image source={{ uri: item.image }} style={styles.scheduleImage} />
-              <View style={styles.scheduleInfo}>
-                <View style={styles.scheduleHeader}>
-                  <Text style={styles.scheduleTitle}>{item.title}</Text>
-                  <View style={styles.levelTag}><Text style={styles.levelText}>{item.level}</Text></View>
+          {loadingEx && !refreshing ? (
+            <ActivityIndicator size="small" color="#D4F93D" />
+          ) : (
+            exercises.map((item) => (
+              <TouchableOpacity key={item.id} style={styles.scheduleItem} activeOpacity={0.9} onPress={() => router.push({
+                pathname: "/(exercise)/exercise-detail",
+                params: { id: item.id }
+              })}
+              >
+                <Image source={{ uri: item.img_list?.[0] }} style={styles.scheduleImage} />
+                <View style={styles.scheduleInfo}>
+                  <View style={styles.scheduleHeader}>
+                    <Text style={styles.scheduleTitle} numberOfLines={1}>{item.title}</Text>
+                    <View style={styles.levelTag}><Text style={styles.levelText}>{item.type}</Text></View>
+                  </View>
+                  <Text style={styles.scheduleSub}>Thời gian: {formatTime(item.duration)}</Text>
+
+                  {/* Hiển thị cơ tác động từ mảng target_muscle */}
+                  <View style={{ flexDirection: 'row', gap: 4, marginTop: 4 }}>
+                    {item.target_muscle.map((muscle, idx) => (
+                      <View key={idx} style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 6, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 10, color: '#6B7280' }}>{muscle}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-                <Text style={styles.scheduleSub}>{item.duration}</Text>
-                <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: `${item.progress}%` }]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
         <View style={{ height: 100 }} />
@@ -113,7 +160,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: "#fff", fontSize: 20, fontWeight: "800", marginBottom: 8 },
   cardTags: { flexDirection: "row", gap: 8 },
   tag: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#fff", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  tagText: { fontSize: 10, fontWeight: "700", color: "#111" },
+  tagText: { fontSize: 10, fontWeight: "700", color: "#111", textTransform: 'capitalize' },
   verticalList: { gap: 16 },
   scheduleItem: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 20, padding: 12, borderWidth: 1, borderColor: "#F3F4F6", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
   scheduleImage: { width: 80, height: 80, borderRadius: 16, backgroundColor: "#eee" },
@@ -122,7 +169,5 @@ const styles = StyleSheet.create({
   scheduleTitle: { fontSize: 16, fontWeight: "800", color: "#111", flex: 1, marginRight: 4 },
   levelTag: { backgroundColor: "#111", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   levelText: { color: "#fff", fontSize: 10, fontWeight: "700" },
-  scheduleSub: { fontSize: 12, color: "#6B7280", marginBottom: 10 },
-  progressBarBg: { height: 6, backgroundColor: "#F3F4F6", borderRadius: 3 },
-  progressBarFill: { height: 6, backgroundColor: "#D4F93D", borderRadius: 3 },
+  scheduleSub: { fontSize: 12, color: "#6B7280" },
 });

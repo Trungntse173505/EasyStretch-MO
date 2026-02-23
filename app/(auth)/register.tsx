@@ -19,7 +19,6 @@ import AuthInput from "../components/AuthInput";
 export default function Register() {
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,7 +36,6 @@ export default function Register() {
   );
 
   const canSubmit =
-    username.trim() &&
     !emailError &&
     !passError &&
     !confirmError &&
@@ -55,7 +53,6 @@ export default function Register() {
     if (!canSubmit || loading) return;
 
     register({
-      user_name: username,
       full_name: fullname,
       email,
       password,
@@ -71,14 +68,6 @@ export default function Register() {
       >
         <View style={styles.container}>
           <Text style={styles.title}>Đăng ký</Text>
-          <AuthInput
-            label="Username"
-            value={username}
-            onChangeText={setUsername}
-            leftIcon="at-outline"
-            placeholder="Nhập username"
-            editable={!loading}
-          />
           <AuthInput
             label="Tên"
             value={fullname}
