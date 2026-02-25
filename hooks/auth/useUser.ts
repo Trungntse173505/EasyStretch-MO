@@ -1,22 +1,30 @@
+// hooks/useUser.ts
 import authApi, { UserData } from "@/api/authApi";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useState } from "react";
 
 export const useUser = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const response: any = await authApi.getInfo();
-      if (response?.success) {
-        setUser(response.data);
+      const cachedData = await AsyncStorage.getItem("USER_INFO");
+      if (cachedData) {
+        setUser(JSON.parse(cachedData));
+        setLoading(false); 
+      } else {
+        setLoading(true); 
       }
+      const response: any = await authApi.getInfo();
+      const freshUser = response?.data?.data || response?.data;
+      if (freshUser && freshUser.id) {
+        setUser(freshUser);
+        await AsyncStorage.setItem("USER_INFO", JSON.stringify(freshUser));
+      }
+      
     } catch (e: any) {
       console.log("Error getInfo:", e);
-      setError(e?.response?.data?.message || "Không thể lấy thông tin cá nhân");
     } finally {
       setLoading(false);
     }
@@ -26,5 +34,5 @@ export const useUser = () => {
     fetchProfile();
   }, [fetchProfile]);
 
-  return { user, loading, error, refresh: fetchProfile };
+  return { user, loading, refresh: fetchProfile };
 };
