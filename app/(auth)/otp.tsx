@@ -1,44 +1,53 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   ImageBackground,
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-
-function OtpBox({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <TextInput
-      value={value}
-      onChangeText={(t) => onChange(t.replace(/[^0-9]/g, "").slice(0, 1))}
-      keyboardType="number-pad"
-      maxLength={1}
-      style={styles.otpInput}
-      placeholder=""
-    />
-  );
-}
+import { useOTP } from "@/hooks/auth/useOTP";
+import AuthInput from "../components/AuthInput";
 
 export default function Otp() {
   const router = useRouter();
-  const [d1, setD1] = useState("");
-  const [d2, setD2] = useState("");
-  const [d3, setD3] = useState("");
-  const [d4, setD4] = useState("");
 
-  const code = `${d1}${d2}${d3}${d4}`;
-  const canSubmit = useMemo(() => code.length === 4, [code]);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  const { getOTP, resetPassword, loading, apiError, setApiError } = useOTP();
+
+  const handleGetOTP = async () => {
+    if (!email) {
+      setApiError("Vui lòng nhập email");
+      return;
+    }
+    const res = await getOTP(email);
+    if (res.success) {
+      setStep(2);
+      setApiError("");
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!otp || !newPassword) {
+      setApiError("Vui lòng điền đủ thông tin");
+      return;
+    }
+    const res = await resetPassword(otp, email, newPassword);
+    if (res.success) {
+      Alert.alert("Thành công", "Đặt lại mật khẩu thành công!", [
+        { text: "Đăng nhập", onPress: () => router.replace("/(auth)/login") }
+      ]);
+    }
+  };
 
   return (
     <ImageBackground
@@ -50,39 +59,102 @@ export default function Otp() {
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.modal}>
-          <View style={styles.checkCircle}>
-            <Ionicons name="checkmark" size={18} color="#4CAF50" />
-          </View>
+          {step === 1 ? (
+            <>
+              <View style={styles.checkCircle}>
+                <Ionicons name="mail" size={18} color="#4CAF50" />
+              </View>
 
-          <Text style={styles.modalTitle}>Đã gửi OTP!</Text>
-          <Text style={styles.modalDesc}>
-            Chúng tôi đã gửi OTP đến{"\n"}
-            <Text style={{ fontWeight: "800" }}>"elementary221b@gmail.com"</Text>. Nhập
-            vào đường dẫn để xác nhận email.
-          </Text>
+              <Text style={styles.modalTitle}>Quên Mật Khẩu</Text>
+              <Text style={styles.modalDesc}>
+                Vui lòng nhập email của bạn để nhận mã OTP khôi phục.
+              </Text>
 
-          <View style={styles.otpRow}>
-            <OtpBox value={d1} onChange={setD1} />
-            <OtpBox value={d2} onChange={setD2} />
-            <OtpBox value={d3} onChange={setD3} />
-            <OtpBox value={d4} onChange={setD4} />
-          </View>
+              <View style={{ width: "100%", marginTop: 20 }}>
+                <AuthInput
+                  label="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  leftIcon="mail-outline"
+                  placeholder="Nhập email của bạn"
+                  keyboardType="email-address"
+                  editable={!loading}
+                />
+              </View>
 
-          <TouchableOpacity
-            style={[styles.primaryBtn, !canSubmit && { opacity: 0.6 }]}
-            disabled={!canSubmit}
-            activeOpacity={0.85}
-            onPress={() => router.replace("/(auth)/login")}
-          >
-            <Text style={styles.primaryBtnText}>Gửi OTP</Text>
-            <Ionicons name="lock-closed" size={16} color="#fff" />
-          </TouchableOpacity>
+              {!!apiError && <Text style={styles.apiError}>{apiError}</Text>}
+
+              <TouchableOpacity
+                style={[styles.primaryBtn, (!email || loading) && { opacity: 0.6 }]}
+                disabled={!email || loading}
+                activeOpacity={0.85}
+                onPress={handleGetOTP}
+              >
+                {loading ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Text style={styles.primaryBtnText}>Lấy mã OTP</Text>
+                    <Ionicons name="send" size={16} color="#fff" />
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <View style={styles.checkCircle}>
+                <Ionicons name="checkmark" size={18} color="#4CAF50" />
+              </View>
+
+              <Text style={styles.modalTitle}>Đã gửi OTP!</Text>
+              <Text style={styles.modalDesc}>
+                Chúng tôi đã gửi OTP đến{"\n"}
+                <Text style={{ fontWeight: "800" }}>{email}</Text>. Vui lòng kiểm tra email.
+              </Text>
+
+              <View style={{ width: "100%", marginTop: 20 }}>
+                <AuthInput
+                  label="Mã OTP"
+                  value={otp}
+                  onChangeText={setOtp}
+                  leftIcon="key-outline"
+                  placeholder="Nhập mã OTP"
+                  keyboardType="numeric"
+                  editable={!loading}
+                />
+                <AuthInput
+                  label="Mật khẩu mới"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  leftIcon="lock-closed-outline"
+                  placeholder="Nhập mật khẩu mới"
+                  secure
+                  editable={!loading}
+                />
+              </View>
+
+              {!!apiError && <Text style={styles.apiError}>{apiError}</Text>}
+
+              <TouchableOpacity
+                style={[styles.primaryBtn, (!otp || !newPassword || loading) && { opacity: 0.6 }]}
+                disabled={!otp || !newPassword || loading}
+                activeOpacity={0.85}
+                onPress={handleResetPassword}
+              >
+                {loading ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Text style={styles.primaryBtnText}>Đặt Lại Mật Khẩu</Text>
+                    <Ionicons name="lock-closed" size={16} color="#fff" />
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         <TouchableOpacity
           style={styles.closeBtn}
           onPress={() => router.back()}
           activeOpacity={0.85}
+          disabled={loading}
         >
           <Ionicons name="close" size={18} color="#111" />
         </TouchableOpacity>
@@ -123,18 +195,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  otpRow: { flexDirection: "row", gap: 10, marginTop: 14, marginBottom: 14 },
-  otpInput: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E7E7E7",
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#111",
-  },
+  apiError: { color: "#ff3b30", marginTop: 10, marginBottom: 10, textAlign: "center" },
 
   primaryBtn: {
     width: "100%",
@@ -145,6 +206,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 10,
+    marginTop: 10,
   },
   primaryBtnText: { color: "#fff", fontWeight: "900" },
 

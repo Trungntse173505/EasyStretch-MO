@@ -6,7 +6,7 @@ export default function NutritionLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="log" />
-      <Stack.Screen name="add" options={{ presentation: 'modal', headerShown: true, title: 'Thêm Bữa Ăn' }} />
+      <Stack.Screen name="add" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }

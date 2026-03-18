@@ -1,78 +1,89 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router"; // 1. Import useRouter
+import { useRouter } from "expo-router";
 import React from "react";
-import { Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ExploreScreen() {
-  const router = useRouter(); // 2. Khởi tạo router
+  const router = useRouter();
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.headerTitle}>Explore</Text>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Khám Phá</Text>
+          <TouchableOpacity style={styles.searchBtn} activeOpacity={0.8}>
+            <Ionicons name="search" size={22} color="#111" />
+          </TouchableOpacity>
+        </View>
 
-        {/* BANNER */}
+        {/* BANNER GỢI Ý */}
         <View style={styles.bannerContainer}>
           <ImageBackground
-            source={{ uri: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800" }}
+            source={{ uri: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1000&auto=format&fit=crop" }}
             style={styles.banner}
-            imageStyle={{ borderRadius: 20 }}
+            imageStyle={{ borderRadius: 28 }}
           >
             <View style={styles.bannerOverlay} />
-            <Text style={styles.bannerText}>Chương trình tập{"\n"}luyện giãn cơ</Text>
-            <TouchableOpacity style={styles.bannerBtn}>
-              <Text style={styles.bannerBtnText}>Xem thêm</Text>
-              <Ionicons name="chevron-forward" size={12} color="#D4F93D" />
-            </TouchableOpacity>
+            <View style={styles.bannerContent}>
+              <View style={styles.badge}>
+                <Ionicons name="star" size={12} color="#FFF" style={{marginRight: 4}} />
+                <Text style={styles.badgeText}>Gợi ý cho bạn</Text>
+              </View>
+              <Text style={styles.bannerText}>Bài tập giãn cơ{"\n"}cho người mới</Text>
+              <TouchableOpacity style={styles.bannerBtn} activeOpacity={0.85}>
+                <Text style={styles.bannerBtnText}>Bắt đầu ngay</Text>
+                <Ionicons name="arrow-forward" size={18} color="#111" />
+              </TouchableOpacity>
+            </View>
           </ImageBackground>
         </View>
 
-        {/* PHẦN DINH DƯỠNG (MỚI) */}
-        <Text style={styles.sectionTitle}>Dinh Dưỡng</Text>
-        {/* 3. Thêm sự kiện onPress để điều hướng sang folder nutrition */}
-        <TouchableOpacity 
-          style={styles.nutritionCard} 
+        {/* ĐIỀU HƯỚNG DINH DƯỠNG */}
+        <View style={styles.sectionHeader}>
+           <Text style={styles.sectionTitle}>Dinh Dưỡng</Text>
+           <TouchableOpacity onPress={() => router.push('/(nutrition)')}>
+              <Text style={styles.seeAllText}>Chi tiết</Text>
+           </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.nutritionCard}
           onPress={() => router.push('/(nutrition)')}
+          activeOpacity={0.9}
         >
-          {/* Cột chỉ số bên trái */}
-          <View style={styles.nutritionStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>25g</Text>
-              <Text style={styles.statLabel}>Protein</Text>
+          <View style={styles.nutriContent}>
+            <View style={styles.nutriHeader}>
+               <View style={styles.nutriIconBg}><Ionicons name="restaurant" size={22} color="#D4F93D" /></View>
+               <Text style={styles.nutriTitle}>Thực Đơn & Calo</Text>
+               <Ionicons name="arrow-forward-circle" size={32} color="#D4F93D" />
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>16g</Text>
-              <Text style={styles.statLabel}>Fat</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>45g</Text>
-              <Text style={styles.statLabel}>Carbs</Text>
+
+            <Text style={styles.nutriDesc}>Theo dõi năng lượng nạp vào và kiểm soát chế độ ăn khoa học cùng Chuyên gia AI.</Text>
+
+            <View style={styles.nutritionStats}>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>Protein</Text>
+                <View style={styles.statLineWrap}>
+                   <View style={[styles.statLine, {width: '60%', backgroundColor: '#8B5CF6'}]} />
+                </View>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>Carbs</Text>
+                <View style={styles.statLineWrap}>
+                   <View style={[styles.statLine, {width: '80%', backgroundColor: '#0EA5E9'}]} />
+                </View>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>Fat</Text>
+                <View style={styles.statLineWrap}>
+                   <View style={[styles.statLine, {width: '40%', backgroundColor: '#F59E0B'}]} />
+                </View>
+              </View>
             </View>
           </View>
-
-          {/* Hình ảnh bên phải */}
-          <Image 
-            source={{ uri: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500" }} 
-            style={styles.nutritionImage}
-            resizeMode="cover"
-          />
         </TouchableOpacity>
-
-        {/* PHÙ HỢP NHẤT */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Phù hợp nhất cho bạn</Text>
-        <View style={styles.grid}>
-          {[1, 2, 3, 4].map((i) => (
-            <TouchableOpacity key={i} style={styles.gridItem}>
-              <Image 
-                source={{ uri: `https://picsum.photos/id/${i+20}/200/200` }} 
-                style={styles.gridImage} 
-              />
-              <Text style={styles.gridTitle} numberOfLines={1}>Gập bụng đạp xe</Text>
-              <Text style={styles.gridSub}>10 min • Beginner</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -81,55 +92,47 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  scrollContent: { padding: 20 },
-  headerTitle: { fontSize: 26, fontWeight: "800", color: "#111", marginBottom: 15 },
-  bannerContainer: { height: 180, marginBottom: 24 },
-  banner: { flex: 1, justifyContent: "center", padding: 20 },
-  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 20 },
-  bannerText: { color: "#fff", fontSize: 22, fontWeight: "800", marginBottom: 10, zIndex: 1 },
-  bannerBtn: { flexDirection: "row", alignItems: "center", gap: 4, zIndex: 1 },
-  bannerBtnText: { color: "#D4F93D", fontWeight: "700" },
-  sectionTitle: { fontSize: 20, fontWeight: "800", color: "#111", marginBottom: 15 },
+  container: { flex: 1, backgroundColor: "#FAFAFA" },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
   
-  nutritionCard: {
-    backgroundColor: "#F3F4F6", 
-    borderRadius: 24,
-    height: 160,
-    flexDirection: "row",
-    overflow: "hidden",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  nutritionStats: {
-    padding: 15,
-    justifyContent: "center",
-    gap: 8,
-    width: "40%",
-  },
-  statItem: {
-    backgroundColor: "#fff",
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  statValue: { fontSize: 14, fontWeight: "800", color: "#111" },
-  statLabel: { fontSize: 10, color: "#6B7280", fontWeight: "600" },
-  nutritionImage: {
-    flex: 1,
-    height: "100%",
-    borderTopLeftRadius: 80, // Tạo đường cong cắt ảnh
-    borderBottomLeftRadius: 20,
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  headerTitle: { fontSize: 32, fontWeight: "900", color: "#111", letterSpacing: -0.5 },
+  searchBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
 
-  // Style cho Grid bài tập
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-  gridItem: { width: "47%", marginBottom: 16 },
-  gridImage: { width: "100%", height: 110, borderRadius: 16, marginBottom: 8, backgroundColor: "#eee" },
-  gridTitle: { fontWeight: "700", fontSize: 14, color: "#111" },
-  gridSub: { fontSize: 12, color: "#6B7280" },
+  bannerContainer: { height: 240, marginBottom: 35, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 15, elevation: 8 },
+  banner: { flex: 1, justifyContent: "flex-end" },
+  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 28 },
+  bannerContent: { padding: 24, zIndex: 1 },
+  badge: { backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center' },
+  badgeText: { color: '#FFF', fontWeight: '800', fontSize: 12 },
+  bannerText: { color: "#fff", fontSize: 26, fontWeight: "900", marginBottom: 20, lineHeight: 34, letterSpacing: -0.5 },
+  bannerBtn: { backgroundColor: "#D4F93D", alignSelf: 'flex-start', paddingHorizontal: 20, paddingVertical: 14, borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: '#D4F93D', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  bannerBtnText: { color: "#111", fontWeight: "900", fontSize: 15 },
+
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 },
+  sectionTitle: { fontSize: 22, fontWeight: "900", color: "#111" },
+  seeAllText: { color: '#8B5CF6', fontWeight: '800', fontSize: 14, marginBottom: 2 },
+
+  nutritionCard: {
+    backgroundColor: "#111",
+    borderRadius: 32,
+    overflow: "hidden",
+    shadowColor: "#111",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 8,
+    marginBottom: 20
+  },
+  nutriContent: { padding: 24 },
+  nutriHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  nutriIconBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(212, 249, 61, 0.1)', justifyContent: 'center', alignItems: 'center' },
+  nutriTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: '#FFF', marginLeft: 16 },
+  nutriDesc: { color: '#9CA3AF', fontSize: 14, lineHeight: 22, fontWeight: '500', marginBottom: 24 },
+  
+  nutritionStats: { gap: 14 },
+  statBox: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statValue: { width: 60, fontSize: 13, fontWeight: "700", color: "#F3F4F6" },
+  statLineWrap: { flex: 1, height: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' },
+  statLine: { height: '100%', borderRadius: 4 },
 });

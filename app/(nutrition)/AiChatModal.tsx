@@ -25,7 +25,6 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
   const { messages, loading, sendMessage, clearChat } = useAIChat();
   const flatListRef = useRef<FlatList>(null);
 
-  // Tự động cuộn xuống cuối khi có tin nhắn mới
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
@@ -46,15 +45,15 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header Modal */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="chevron-down" size={28} color="#111" />
+          <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
+            <Ionicons name="chevron-down" size={24} color="#111" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Ionicons name="sparkles" size={20} color="#D4F93D" style={{marginRight: 8}} />
-            <Text style={styles.headerTitle}>Chuyên gia Dinh dưỡng AI</Text>
+            <Ionicons name="sparkles" size={18} color="#D4F93D" style={{marginRight: 6}} />
+            <Text style={styles.headerTitle}>Chuyên gia Dinh dưỡng</Text>
           </View>
-          <TouchableOpacity onPress={clearChat}>
-            <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+          <TouchableOpacity onPress={clearChat} style={styles.iconBtnDel}>
+            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
           </TouchableOpacity>
         </View>
 
@@ -72,7 +71,7 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
               const isUser = item.role === 'user';
               return (
                 <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.aiBubble]}>
-                  {!isUser && <Ionicons name="nutrition-outline" size={20} color="#111" style={styles.aiIcon} />}
+                  {!isUser && <View style={styles.aiIconWrap}><Ionicons name="nutrition" size={16} color="#FFF" /></View>}
                   <Text style={[styles.messageText, isUser && styles.userText]}>
                     {item.content}
                   </Text>
@@ -81,11 +80,10 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
             }}
           />
 
-          {/* Hiển thị Typing Indicator khi AI đang nghĩ */}
           {loading && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="#D4F93D" />
-              <Text style={styles.loadingText}>AI đang soạn trả lời...</Text>
+              <Text style={styles.loadingText}>AI đang phân tích...</Text>
             </View>
           )}
 
@@ -93,18 +91,20 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Hỏi AI về bữa ăn của bạn..."
+              placeholder="Bạn muốn ăn gì hôm nay?"
+              placeholderTextColor="#9CA3AF"
               value={inputText}
               onChangeText={setInputText}
               multiline
               maxLength={500}
             />
             <TouchableOpacity 
-              style={[styles.sendButton, !inputText.trim() && { opacity: 0.5 }]} 
+              style={[styles.sendButton, !inputText.trim() && { backgroundColor: '#F3F4F6', shadowOpacity: 0 }]} 
               onPress={handleSend}
               disabled={!inputText.trim() || loading}
+              activeOpacity={0.8}
             >
-              <Ionicons name="send" size={20} color="#111" />
+              <Ionicons name="send" size={18} color={!inputText.trim() ? '#9CA3AF' : '#111'} />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -115,19 +115,21 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', backgroundColor: '#FFF' },
-  headerTitleContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
-  headerTitle: { fontSize: 16, fontWeight: 'bold', color: '#FFF' },
-  chatContainer: { padding: 15, flexGrow: 1 },
-  messageBubble: { maxWidth: '80%', padding: 15, borderRadius: 20, marginBottom: 15 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15, backgroundColor: '#FAFAFA' },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
+  iconBtnDel: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FEE2E2' },
+  headerTitleContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, shadowColor: '#111', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+  headerTitle: { fontSize: 14, fontWeight: '800', color: '#FFF' },
+  chatContainer: { padding: 20, flexGrow: 1, paddingBottom: 40 },
+  messageBubble: { maxWidth: '85%', padding: 16, borderRadius: 20, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 1 },
   userBubble: { alignSelf: 'flex-end', backgroundColor: '#111', borderBottomRightRadius: 4 },
-  aiBubble: { alignSelf: 'flex-start', backgroundColor: '#FFF', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row' },
-  aiIcon: { marginRight: 8, marginTop: 2 },
-  messageText: { fontSize: 15, lineHeight: 22, color: '#111' },
+  aiBubble: { alignSelf: 'flex-start', backgroundColor: '#FFF', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#F3F4F6', flexDirection: 'row', alignItems: 'flex-start' },
+  aiIconWrap: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center', marginRight: 10, marginTop: 2 },
+  messageText: { fontSize: 15, lineHeight: 24, color: '#111', flexShrink: 1, fontWeight: '500' },
   userText: { color: '#FFF' },
-  loadingContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 10 },
-  loadingText: { marginLeft: 10, color: '#6B7280', fontStyle: 'italic', fontSize: 13 },
-  inputContainer: { flexDirection: 'row', padding: 15, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#E5E7EB', alignItems: 'flex-end' },
-  input: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, minHeight: 45, maxHeight: 100, fontSize: 15 },
-  sendButton: { backgroundColor: '#D4F93D', width: 45, height: 45, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginLeft: 10 }
+  loadingContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 25, paddingBottom: 15 },
+  loadingText: { marginLeft: 10, color: '#6B7280', fontStyle: 'italic', fontSize: 13, fontWeight: '600' },
+  inputContainer: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', alignItems: 'flex-end', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
+  input: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 24, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, minHeight: 48, maxHeight: 120, fontSize: 16, color: '#111', borderWidth: 1, borderColor: '#F1F5F9' },
+  sendButton: { backgroundColor: '#D4F93D', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginLeft: 12, shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 2 }
 });

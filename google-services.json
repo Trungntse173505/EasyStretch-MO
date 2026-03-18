@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "927479430136",
+    "project_id": "notification-d20da",
+    "storage_bucket": "notification-d20da.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:927479430136:android:683d1afd3dd4cb5458b40d",
+        "android_client_info": {
+          "package_name": "com.hiha.easystretch"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsqRhS2Z4sjQuTDrj8VvA6iJQQdRDQo0Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

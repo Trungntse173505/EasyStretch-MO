@@ -38,6 +38,16 @@ interface ApiResponse<T> {
   data: T;
 }
 
+export interface OtpRequest {
+  gmail: string;
+}
+
+export interface ResetPassRequest {
+  otp: string;
+  gmail: string;
+  password: string;
+}
+
 const authApi = {
   login: (data: Login) => {
     return axiosClient.post<LoginResponse>('/users/signin', data);
@@ -53,6 +63,14 @@ const authApi = {
   
   getInfo: () => {
     return axiosClient.get<ApiResponse<UserData>>('/users/profile');
+  },
+
+  otp: (data: OtpRequest) => {
+    return axiosClient.post<ApiResponse<any>>('/users/otp', data);
+  },
+
+  resetpass: (data: ResetPassRequest) =>{
+    return axiosClient.post<ApiResponse<any>>('/users/reset', data);
   }
 };
 

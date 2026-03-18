@@ -5,7 +5,7 @@ import { PendingFood, useMeal } from '@/hooks/notrition/useMeal';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Food } from '../../api/nutritionApi';
 
@@ -25,28 +25,24 @@ export default function AddMealScreen() {
   const [newFood, setNewFood] = useState({ name: '', calories: '', protein: '', fat: '', carbs: '' });
   const [quantityInput, setQuantityInput] = useState('1');
 
-  // Load danh sách món ăn từ server khi mở modal
   useEffect(() => {
     if (isModalVisible && modalStep === 'SEARCH') {
       fetchFoodsList();
     }
   }, [isModalVisible, modalStep]);
 
-  // --- LOGIC LƯU BỮA ĂN ---
   const handleSaveMeal = async () => {
     if (pendingFoods.length === 0) {
-        Alert.alert("Thông báo", "Vui lòng thêm ít nhất một món ăn.");
-        return;
+      Alert.alert("Thông báo", "Vui lòng thêm ít nhất một món ăn.");
+      return;
     }
 
     if (!user?.id) {
-        Alert.alert("Lỗi", "Đang tải thông tin người dùng hoặc chưa đăng nhập. Vui lòng thử lại sau.");
-        return;
+      Alert.alert("Lỗi", "Đang tải thông tin người dùng hoặc chưa đăng nhập. Vui lòng thử lại sau.");
+      return;
     }
 
-    const date = new Date().toISOString(); 
-
-    // Gọi API qua hook bằng ID thật
+    const date = new Date().toISOString();
     const result = await saveMealFlow(user.id, mealType, date, pendingFoods);
 
     if (result.success) {
@@ -58,7 +54,6 @@ export default function AddMealScreen() {
     }
   };
 
-  // --- MODAL HANDLERS ---
   const openModal = () => {
     setModalStep('SEARCH');
     setSearchQuery('');
@@ -107,101 +102,140 @@ export default function AddMealScreen() {
 
   const filteredFoods = dbFoods.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  const getMealTypeLabel = (type: string) => {
+    if (type === 'BREAKFAST') return 'Sáng';
+    if (type === 'LUNCH') return 'Trưa';
+    return 'Tối';
+  };
+
   return (
-    <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} style={{padding: 20}}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+          <Ionicons name="arrow-back" size={24} color="#111" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Thêm Bữa Ăn</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} style={{ paddingHorizontal: 20, paddingTop: 10 }}>
         <Text style={styles.sectionTitle}>Thời điểm ăn</Text>
         <View style={styles.typeSelector}>
           {(['BREAKFAST', 'LUNCH', 'DINNER'] as const).map((type) => (
-            <TouchableOpacity 
-              key={type} 
+            <TouchableOpacity
+              key={type}
               style={[styles.typeBtn, mealType === type && styles.activeTypeBtn]}
               onPress={() => setMealType(type)}
+              activeOpacity={0.8}
             >
-              <Text style={mealType === type ? styles.activeTypeText : styles.typeText}>{type}</Text>
+              <Text style={mealType === type ? styles.activeTypeText : styles.typeText}>{getMealTypeLabel(type)}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <View style={styles.listHeader}>
           <Text style={styles.sectionTitle}>Món ăn đã chọn</Text>
-          <TouchableOpacity style={styles.addFoodBtn} onPress={openModal}>
-            <Text style={styles.addFoodText}>+ Thêm món</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.foodsContainer}>
           {pendingFoods.length === 0 ? (
-             <Text style={styles.emptyText}>Chưa có món ăn nào. Hãy thêm món ăn nhé!</Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="fast-food-outline" size={48} color="#E2E8F0" />
+              <Text style={styles.emptyText}>Chưa có món ăn nào. Hãy thêm món ăn nhé!</Text>
+            </View>
           ) : (
             pendingFoods.map((food, index) => (
               <View key={index} style={styles.foodItem}>
-                <View style={{flex: 1}}>
-                  <Text style={styles.foodName}>{food.name} {food.isNew ? '' : ''}</Text>
-                  <Text style={styles.foodDetails}>Sl: {food.quantity} | {food.calories * food.quantity} kcal</Text>
+                <View style={styles.foodIconWrap}>
+                  <Ionicons name="nutrition" size={20} color="#8B5CF6" />
                 </View>
-                <TouchableOpacity onPress={() => setPendingFoods(prev => prev.filter((_, i) => i !== index))}>
-                    <Ionicons name="close-circle-outline" size={24} color="#FF3B30" />
+                <View style={{ flex: 1, paddingLeft: 12 }}>
+                  <Text style={styles.foodName}>{food.name}</Text>
+                  <Text style={styles.foodDetails}>{food.quantity} phần • <Text style={{ fontWeight: '700', color: '#111' }}>{food.calories * food.quantity} kcal</Text></Text>
+                </View>
+                <TouchableOpacity onPress={() => setPendingFoods(prev => prev.filter((_, i) => i !== index))} style={styles.deleteBtn}>
+                  <Ionicons name="trash-outline" size={20} color="#FF3B30" />
                 </TouchableOpacity>
               </View>
             ))
           )}
+
+          <TouchableOpacity style={styles.addFoodBigBtn} onPress={openModal} activeOpacity={0.8}>
+            <Ionicons name="add-circle" size={24} color="#111" />
+            <Text style={styles.addFoodBigText}>Thêm món mới</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.saveButton} onPress={handleSaveMeal} disabled={isSaving}>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSaveMeal} disabled={isSaving} activeOpacity={0.85}>
           {isSaving ? (
-              <ActivityIndicator color="#111" />
+            <ActivityIndicator color="#111" />
           ) : (
-              <Text style={styles.saveButtonText}>Xác nhận</Text>
+            <Text style={styles.saveButtonText}>Xác nhận & Lưu</Text>
           )}
         </TouchableOpacity>
       </View>
 
       {/* --- MODAL THÊM MÓN ĂN --- */}
       <Modal visible={isModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
-        <SafeAreaView style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer} edges={['top']}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {
               if (modalStep === 'QUANTITY') setModalStep(tempFood?.isNew ? 'CREATE' : 'SEARCH');
               else if (modalStep === 'CREATE') setModalStep('SEARCH');
               else closeModal();
-            }}>
-              <Ionicons name="chevron-back" size={28} color="#111" />
+            }} style={styles.modalIconBtn} activeOpacity={0.8}>
+              {modalStep === 'SEARCH' ? <Ionicons name="close" size={24} color="#111" /> : <Ionicons name="arrow-back" size={24} color="#111" />}
             </TouchableOpacity>
+
             <Text style={styles.modalTitle}>
               {modalStep === 'SEARCH' ? 'Tìm món ăn' : modalStep === 'CREATE' ? 'Tạo món mới' : 'Nhập số lượng'}
             </Text>
-            <TouchableOpacity onPress={closeModal}>
-              <Ionicons name="close" size={28} color="#111" />
-            </TouchableOpacity>
+
+            <View style={{ width: 40 }} />
           </View>
 
           {/* STEP 1: TÌM KIẾM */}
           {modalStep === 'SEARCH' && (
             <View style={styles.modalContent}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Tìm tên món ăn..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              <TouchableOpacity style={styles.createNewBtn} onPress={() => setModalStep('CREATE')}>
-                <Ionicons name="add-circle-outline" size={20} color="#111" />
-                <Text style={styles.createNewBtnText}>Tạo món mới ngay</Text>
+              <View style={styles.searchBarContainer}>
+                <Ionicons name="search" size={20} color="#9CA3AF" style={{ marginLeft: 15 }} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Tìm tên món ăn..."
+                  placeholderTextColor="#9CA3AF"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+
+              <TouchableOpacity style={styles.createNewBtn} onPress={() => setModalStep('CREATE')} activeOpacity={0.8}>
+                <View style={styles.createIconWrap}>
+                  <Ionicons name="add" size={20} color="#111" />
+                </View>
+                <Text style={styles.createNewBtnText}>Không tìm thấy? Tạo món mới</Text>
               </TouchableOpacity>
-              
+
               {loadingFoods ? (
-                <ActivityIndicator color="#111" style={{marginTop: 20}} />
+                <ActivityIndicator color="#111" style={{ marginTop: 40 }} />
               ) : (
                 <FlatList
                   data={filteredFoods}
                   keyExtractor={(item, index) => item.id || index.toString()}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 40 }}
                   renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.searchResultItem} onPress={() => handleSelectExistingFood(item)}>
-                      <Text style={styles.searchResultName}>{item.name}</Text>
-                      <Text style={styles.searchResultCal}>{item.calories} kcal</Text>
+                    <TouchableOpacity style={styles.searchResultItem} onPress={() => handleSelectExistingFood(item)} activeOpacity={0.7}>
+                      <View style={styles.searchFoodIcon}>
+                        <Ionicons name="restaurant-outline" size={20} color="#64748B" />
+                      </View>
+                      <View style={{ flex: 1, paddingLeft: 12 }}>
+                        <Text style={styles.searchResultName}>{item.name}</Text>
+                        <Text style={styles.searchResultCal}>{item.calories} kcal</Text>
+                      </View>
+                      <Ionicons name="add-circle" size={28} color="#E2E8F0" />
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={<Text style={styles.emptySearchText}>Không tìm thấy kết quả phù hợp.</Text>}
@@ -212,102 +246,142 @@ export default function AddMealScreen() {
 
           {/* STEP 2: TẠO MÓN MỚI */}
           {modalStep === 'CREATE' && (
-            <ScrollView style={styles.modalContent}>
-              <Text style={styles.inputLabel}>Tên món ăn (*)</Text>
-              <TextInput style={styles.inputField} placeholder="VD: Bò bít tết" value={newFood.name} onChangeText={(t) => setNewFood({...newFood, name: t})} />
-              
-              <Text style={styles.inputLabel}>Calories (*)</Text>
-              <TextInput style={styles.inputField} placeholder="VD: 250" keyboardType="numeric" value={newFood.calories} onChangeText={(t) => setNewFood({...newFood, calories: t})} />
-              
-              <View style={{flexDirection: 'row', gap: 10}}>
-                <View style={{flex: 1}}>
-                  <Text style={styles.inputLabel}>Protein (g)</Text>
-                  <TextInput style={styles.inputField} keyboardType="numeric" value={newFood.protein} onChangeText={(t) => setNewFood({...newFood, protein: t})} />
-                </View>
-                <View style={{flex: 1}}>
-                  <Text style={styles.inputLabel}>Carbs (g)</Text>
-                  <TextInput style={styles.inputField} keyboardType="numeric" value={newFood.carbs} onChangeText={(t) => setNewFood({...newFood, carbs: t})} />
-                </View>
-                <View style={{flex: 1}}>
-                  <Text style={styles.inputLabel}>Fat (g)</Text>
-                  <TextInput style={styles.inputField} keyboardType="numeric" value={newFood.fat} onChangeText={(t) => setNewFood({...newFood, fat: t})} />
-                </View>
-              </View>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+              <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.formCard}>
+                  <Text style={styles.inputLabel}>Tên món ăn <Text style={{ color: '#FF3B30' }}>*</Text></Text>
+                  <TextInput style={styles.inputField} placeholder="VD: Bò bít tết" placeholderTextColor="#94A3B8" value={newFood.name} onChangeText={(t) => setNewFood({ ...newFood, name: t })} />
 
-              <TouchableOpacity style={styles.saveModalBtn} onPress={handleCreateNewFoodSubmit}>
-                <Text style={styles.saveModalBtnText}>Tiếp tục</Text>
-              </TouchableOpacity>
-            </ScrollView>
+                  <Text style={styles.inputLabel}>Calories <Text style={{ color: '#FF3B30' }}>*</Text></Text>
+                  <TextInput style={styles.inputField} placeholder="VD: 250" placeholderTextColor="#94A3B8" keyboardType="numeric" value={newFood.calories} onChangeText={(t) => setNewFood({ ...newFood, calories: t })} />
+
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputLabel}>Protein (g)</Text>
+                      <TextInput style={styles.inputFieldSm} keyboardType="numeric" value={newFood.protein} onChangeText={(t) => setNewFood({ ...newFood, protein: t })} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputLabel}>Carbs (g)</Text>
+                      <TextInput style={styles.inputFieldSm} keyboardType="numeric" value={newFood.carbs} onChangeText={(t) => setNewFood({ ...newFood, carbs: t })} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputLabel}>Fat (g)</Text>
+                      <TextInput style={styles.inputFieldSm} keyboardType="numeric" value={newFood.fat} onChangeText={(t) => setNewFood({ ...newFood, fat: t })} />
+                    </View>
+                  </View>
+                </View>
+
+                <TouchableOpacity style={styles.saveModalBtn} onPress={handleCreateNewFoodSubmit} activeOpacity={0.85}>
+                  <Text style={styles.saveModalBtnText}>Tiếp tục</Text>
+                </TouchableOpacity>
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </KeyboardAvoidingView>
           )}
 
           {/* STEP 3: NHẬP SỐ LƯỢNG */}
           {modalStep === 'QUANTITY' && (
             <View style={styles.modalContent}>
               <View style={styles.quantityCard}>
+                <View style={styles.qtyIconBg}><Ionicons name="restaurant" size={32} color="#0EA5E9" /></View>
                 <Text style={styles.quantityFoodName}>{tempFood?.name}</Text>
-                <Text style={styles.quantityMacros}>1 phần = {tempFood?.calories} kcal</Text>
+                <Text style={styles.quantityMacros}>1 phần = <Text style={{ fontWeight: '800', color: '#111' }}>{tempFood?.calories} kcal</Text></Text>
               </View>
 
-              <Text style={styles.inputLabel}>Số lượng (phần):</Text>
-              <TextInput 
-                style={styles.inputField} 
-                keyboardType="numeric" 
-                value={quantityInput} 
-                onChangeText={setQuantityInput} 
+              <Text style={styles.inputLabel}>Số lượng (phần)</Text>
+              <TextInput
+                style={styles.qtyInputField}
+                keyboardType="numeric"
+                value={quantityInput}
+                onChangeText={setQuantityInput}
                 autoFocus
+                placeholder="1"
+                placeholderTextColor="#CBD5E1"
+                textAlign="center"
               />
               <Text style={styles.totalCalText}>
-                Tổng: <Text style={{fontWeight: 'bold'}}>{(tempFood?.calories || 0) * (Number(quantityInput) || 0)} kcal</Text>
+                Tổng năng lượng: <Text style={{ fontWeight: '900', color: '#111', fontSize: 24 }}>{(tempFood?.calories || 0) * (Number(quantityInput) || 0)}</Text> kcal
               </Text>
 
-              <TouchableOpacity style={styles.saveModalBtn} onPress={handleConfirmAddFood}>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={styles.saveModalBtn} onPress={handleConfirmAddFood} activeOpacity={0.85}>
                 <Text style={styles.saveModalBtnText}>Thêm vào bữa ăn</Text>
               </TouchableOpacity>
+              <View style={{ height: 30 }} />
             </View>
           )}
         </SafeAreaView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#9CA3AF', marginBottom: 15, textTransform: 'uppercase' },
-  typeSelector: { flexDirection: 'row', gap: 10, marginBottom: 30 },
-  typeBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center' },
-  activeTypeBtn: { backgroundColor: '#D4F93D' },
-  typeText: { color: '#6B7280', fontWeight: 'bold', fontSize: 12 },
-  activeTypeText: { color: '#111', fontWeight: 'bold', fontSize: 12 },
-  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  addFoodBtn: { paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F9FAFB', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' },
-  addFoodText: { color: '#111', fontWeight: '700', fontSize: 13 },
-  foodsContainer: { marginBottom: 30 },
-  foodItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 16, borderRadius: 16, marginBottom: 12 },
-  foodName: { fontSize: 16, fontWeight: '800', color: '#111' },
-  foodDetails: { color: '#6B7280', marginTop: 4, fontWeight: '600', fontSize: 13 },
-  emptyText: { color: '#9CA3AF', fontStyle: 'italic', textAlign: 'center', marginTop: 10 },
-  footer: { marginBottom: 40, paddingHorizontal: 20},
-  saveButton: { backgroundColor: '#D4F93D', paddingVertical: 18, borderRadius: 16, alignItems: 'center' },
-  saveButtonText: { color: '#111', fontSize: 16, fontWeight: '900' },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
+  headerTitle: { fontSize: 22, fontWeight: '900', color: '#111' },
 
-  modalContainer: { flex: 1, backgroundColor: '#FFF' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold' },
-  modalContent: { padding: 20, flex: 1 },
-  searchInput: { backgroundColor: '#F3F4F6', padding: 15, borderRadius: 12, fontSize: 16, marginBottom: 15 },
-  createNewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#D4F93D', padding: 12, borderRadius: 12, marginBottom: 20 },
-  createNewBtnText: { marginLeft: 8, fontWeight: 'bold', fontSize: 14 },
-  searchResultItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  searchResultName: { fontSize: 16, fontWeight: '600' },
-  searchResultCal: { color: '#6B7280' },
-  emptySearchText: { textAlign: 'center', color: '#9CA3AF', marginTop: 20 },
-  inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: '#374151', marginTop: 15 },
-  inputField: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', padding: 15, borderRadius: 12, fontSize: 16 },
-  saveModalBtn: { backgroundColor: '#111', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 30 },
-  saveModalBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  quantityCard: { backgroundColor: '#F3F4F6', padding: 20, borderRadius: 16, alignItems: 'center', marginBottom: 20 },
-  quantityFoodName: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
-  quantityMacros: { color: '#6B7280' },
-  totalCalText: { fontSize: 16, textAlign: 'center', marginTop: 20, color: '#374151' }
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#111', marginBottom: 16 },
+
+  typeSelector: { flexDirection: 'row', gap: 12, marginBottom: 35 },
+  typeBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#FFF', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+  activeTypeBtn: { backgroundColor: '#111', borderColor: '#111', shadowColor: '#111', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
+  typeText: { color: '#64748B', fontWeight: '700', fontSize: 14 },
+  activeTypeText: { color: '#D4F93D', fontWeight: '800', fontSize: 14 },
+
+  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+
+  foodsContainer: { paddingBottom: 40 },
+  emptyContainer: { alignItems: 'center', paddingVertical: 40, backgroundColor: '#FFF', borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9', borderStyle: 'dashed' },
+  emptyText: { color: '#94A3B8', fontWeight: '600', textAlign: 'center', marginTop: 12, paddingHorizontal: 40, lineHeight: 22 },
+
+  foodItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 2, borderWidth: 1, borderColor: '#F8FAFC' },
+  foodIconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F3FF', justifyContent: 'center', alignItems: 'center' },
+  foodName: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 4 },
+  foodDetails: { color: '#64748B', fontWeight: '600', fontSize: 13 },
+  deleteBtn: { padding: 8 },
+
+  addFoodBigBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', paddingVertical: 16, borderRadius: 20, marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+  addFoodBigText: { marginLeft: 8, fontWeight: '800', fontSize: 15, color: '#111' },
+
+  footer: { paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 20 : 40, paddingTop: 10, backgroundColor: '#FAFAFA' },
+  saveButton: { backgroundColor: '#D4F93D', paddingVertical: 18, borderRadius: 30, alignItems: 'center', shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8 },
+  saveButtonText: { color: '#111', fontSize: 17, fontWeight: '900' },
+
+  // MODAL
+  modalContainer: { flex: 1, backgroundColor: '#FAFAFA' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15, backgroundColor: '#FAFAFA' },
+  modalIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
+  modalTitle: { fontSize: 18, fontWeight: '900', color: '#111' },
+  modalContent: { paddingHorizontal: 20, paddingTop: 10, flex: 1 },
+
+  searchBarContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+  searchInput: { flex: 1, padding: 16, fontSize: 16, color: '#111', fontWeight: '500' },
+
+  createNewBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', padding: 16, borderRadius: 20, marginBottom: 25, shadowColor: '#111', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+  createIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#D4F93D', justifyContent: 'center', alignItems: 'center' },
+  createNewBtnText: { marginLeft: 12, fontWeight: '800', fontSize: 15, color: '#FFF' },
+
+  searchResultItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  searchFoodIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
+  searchResultName: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 4 },
+  searchResultCal: { color: '#64748B', fontWeight: '600', fontSize: 13 },
+  emptySearchText: { textAlign: 'center', color: '#94A3B8', marginTop: 30, fontWeight: '600' },
+
+  formCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: '#F1F5F9' },
+  inputLabel: { fontSize: 14, fontWeight: '700', marginBottom: 8, color: '#475569', marginTop: 12 },
+  inputField: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, fontSize: 16, color: '#111', fontWeight: '600' },
+  inputFieldSm: { backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, fontSize: 15, color: '#111', fontWeight: '600', textAlign: 'center' },
+
+  saveModalBtn: { backgroundColor: '#D4F93D', paddingVertical: 18, borderRadius: 30, alignItems: 'center', marginTop: 30, shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8 },
+  saveModalBtnText: { color: '#111', fontWeight: '900', fontSize: 17 },
+
+  quantityCard: { backgroundColor: '#FFF', padding: 30, borderRadius: 24, alignItems: 'center', marginBottom: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: '#F1F5F9' },
+  qtyIconBg: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F0F9FF', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  quantityFoodName: { fontSize: 22, fontWeight: '900', color: '#111', marginBottom: 8, textAlign: 'center' },
+  quantityMacros: { color: '#64748B', fontSize: 15, fontWeight: '600' },
+
+  qtyInputField: { backgroundColor: '#FFF', padding: 16, borderRadius: 20, fontSize: 36, fontWeight: '900', color: '#111', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9', marginVertical: 10 },
+  totalCalText: { fontSize: 15, textAlign: 'center', marginTop: 20, color: '#64748B', fontWeight: '600' }
 });

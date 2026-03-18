@@ -1,4 +1,5 @@
 // hooks/exercise/useExercisesClient.ts
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Bổ sung import
 import { useCallback, useEffect, useState } from 'react';
 import exerciseApi, { Exercise } from '../../api/exerciseApi';
 
@@ -12,10 +13,19 @@ export const useExercisesClient = () => {
       setLoading(true);
       setError(null);
       const data = await exerciseApi.getAllClient();
+      const userInfoStr = await AsyncStorage.getItem("USER_INFO");
+      let isVip = false;     
+      if (userInfoStr) {
+        const user = JSON.parse(userInfoStr);
+        isVip = user.is_subscriber === 'active';
+      }
+      if (isVip) {
+        setExercises(data);
+      } else {
+        const freeExercises = data.filter((ex: Exercise) => ex.type === 'free');
+        setExercises(freeExercises);
+      }
       
-      // Lọc lấy những bài tập "free" theo yêu cầu
-      const freeExercises = data.filter(ex => ex.type === 'free');
-      setExercises(freeExercises);
     } catch (err: any) {
       console.error("Lỗi fetch exercises:", err);
       setError("Không thể tải danh sách bài tập.");

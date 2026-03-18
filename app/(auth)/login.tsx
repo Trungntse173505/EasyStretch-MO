@@ -97,7 +97,7 @@ export default function Login() {
           </View>
 
           <TouchableOpacity disabled={loading} onPress={() => router.push("/(auth)/otp")}>
-            <Text style={[styles.link, { textAlign: "center" }]}>Quên Mật Khẩu</Text>
+            <Text style={[styles.link, { textAlign: "center", marginTop: 20 }]}>Quên Mật Khẩu</Text>
           </TouchableOpacity>
         </View>
       </ImageBackground>
