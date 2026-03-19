@@ -32,7 +32,11 @@ export default function ExploreScreen() {
                 <Text style={styles.badgeText}>Gợi ý cho bạn</Text>
               </View>
               <Text style={styles.bannerText}>Bài tập giãn cơ{"\n"}cho người mới</Text>
-              <TouchableOpacity style={styles.bannerBtn} activeOpacity={0.85}>
+              <TouchableOpacity 
+                style={styles.bannerBtn} 
+                activeOpacity={0.85}
+                onPress={() => router.push('/(stretching)')}
+              >
                 <Text style={styles.bannerBtnText}>Bắt đầu ngay</Text>
                 <Ionicons name="arrow-forward" size={18} color="#111" />
               </TouchableOpacity>

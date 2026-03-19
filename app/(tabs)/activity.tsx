@@ -128,6 +128,28 @@ export default function ActivityScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* LEADERBOARD ENTRY */}
+        <View style={styles.sectionHeaderLeaderboard}>
+          <Text style={styles.sectionTitle}>Bảng xếp hạng</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.leaderboardEntryCard}
+          activeOpacity={0.8}
+          onPress={() => router.push('/leaderboard')}
+        >
+          <View style={styles.leaderboardEntryLeft}>
+            <View style={styles.leaderboardIconBg}>
+              <Ionicons name="trophy" size={24} color="#FBBF24" />
+            </View>
+            <View>
+              <Text style={styles.leaderboardEntryTitle}>Đường đua rèn luyện</Text>
+              <Text style={styles.leaderboardEntryDesc}>Xem thứ hạng của bạn</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#A1A1AA" />
+        </TouchableOpacity>
+
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
@@ -181,4 +203,23 @@ const styles = StyleSheet.create({
   progressPercent: { fontSize: 14, fontWeight: '800', color: '#0284C7' },
   progressBarBg: { height: 8, backgroundColor: '#BAE6FD', borderRadius: 4, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: '#0EA5E9', borderRadius: 4 },
+
+  sectionHeaderLeaderboard: { marginTop: 32, marginBottom: 16 },
+  leaderboardEntryCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  leaderboardEntryLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  leaderboardIconBg: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
+  leaderboardEntryTitle: { color: '#111', fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  leaderboardEntryDesc: { color: '#64748B', fontSize: 13, fontWeight: '600' },
 });
