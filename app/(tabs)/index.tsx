@@ -41,9 +41,9 @@ export default function HomeScreen() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <View style={{flexDirection: 'row', alignItems: 'center', gap: 14}}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={styles.avatarWrap}>
-               <Ionicons name="person" size={20} color="#D4F93D" />
+              <Ionicons name="person" size={20} color="#D4F93D" />
             </View>
             <View>
               <Text style={styles.greeting}>Chào ngày mới 👋</Text>
@@ -71,13 +71,13 @@ export default function HomeScreen() {
               >
                 <ImageBackground source={{ uri: item.img_url }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
                   <View style={styles.overlay} />
-                  
+
                   <View style={styles.courseTop}>
                     <View style={styles.levelBadge}>
                       <Ionicons name="flash" size={14} color="#111" />
                       <Text style={styles.levelText}>{item.level}</Text>
                     </View>
-                    <View style={styles.playBtn}><Ionicons name="play" size={16} color="#111" style={{marginLeft: 2}}/></View>
+                    <View style={styles.playBtn}><Ionicons name="play" size={16} color="#111" style={{ marginLeft: 2 }} /></View>
                   </View>
 
                   <View style={styles.courseBottom}>
@@ -93,7 +93,7 @@ export default function HomeScreen() {
         )}
 
         {/* SECTION 2: BÀI TẬP GỢI Ý */}
-        <View style={{marginTop: 35}}>
+        <View style={{ marginTop: 35 }}>
           <SectionHeader title="Gợi Ý Cho Bạn" />
           <View style={styles.verticalList}>
             {loadingEx && !refreshing ? (
@@ -109,7 +109,7 @@ export default function HomeScreen() {
                   <Image source={{ uri: item.img_list?.[0] }} style={styles.exImg} />
                   <View style={styles.exInfo}>
                     <Text style={styles.exTitle} numberOfLines={1}>{item.title}</Text>
-                    
+
                     <View style={styles.exMetaRow}>
                       <View style={styles.exTypeBadge}><Text style={styles.exTypeText}>{item.type}</Text></View>
                       <View style={styles.durationWrap}>
@@ -124,7 +124,7 @@ export default function HomeScreen() {
                       ))}
                     </View>
                   </View>
-                  <Ionicons name="arrow-forward-circle" size={32} color="#D4F93D" style={{marginLeft: 10}} />
+                  <Ionicons name="arrow-forward-circle" size={32} color="#D4F93D" style={{ marginLeft: 10 }} />
                 </TouchableOpacity>
               ))
             )}
@@ -138,9 +138,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAFA" },
+  container: { flex: 1, backgroundColor: "#FAFAFA", marginBottom: 30 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
-  
+
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 30 },
   avatarWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' },
   greeting: { fontSize: 13, color: "#64748B", marginBottom: 2, fontWeight: "600", textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   courseCard: { width: 280, height: 200, marginRight: 20, borderRadius: 28, shadowColor: "#111", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 15, elevation: 8, marginBottom: 10 },
   courseBg: { flex: 1, justifyContent: "space-between", padding: 20 },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 28 },
-  
+
   courseTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", zIndex: 1 },
   levelBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#D4F93D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
   levelText: { fontSize: 12, fontWeight: "900", color: "#111", textTransform: "capitalize" },
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   exImg: { width: 90, height: 90, borderRadius: 20, backgroundColor: "#F3F4F6" },
   exInfo: { flex: 1, marginLeft: 16, justifyContent: "center" },
   exTitle: { fontSize: 17, fontWeight: "900", color: "#111", marginBottom: 8 },
-  
+
   exMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   exTypeBadge: { backgroundColor: "#F8FAFC", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' },
   exTypeText: { color: "#475569", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },

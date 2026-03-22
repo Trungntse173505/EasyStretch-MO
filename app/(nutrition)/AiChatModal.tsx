@@ -3,15 +3,15 @@ import { useAIChat } from '@/hooks/notrition/useAIChat';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList, KeyboardAvoidingView,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList, KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -49,7 +49,7 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
             <Ionicons name="chevron-down" size={24} color="#111" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Ionicons name="sparkles" size={18} color="#D4F93D" style={{marginRight: 6}} />
+            <Ionicons name="sparkles" size={18} color="#D4F93D" style={{ marginRight: 6 }} />
             <Text style={styles.headerTitle}>Chuyên gia Dinh dưỡng</Text>
           </View>
           <TouchableOpacity onPress={clearChat} style={styles.iconBtnDel}>
@@ -58,9 +58,10 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
         </View>
 
         {/* Khung Chat */}
-        <KeyboardAvoidingView 
-          style={{ flex: 1 }} 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <FlatList
             ref={flatListRef}
@@ -98,8 +99,8 @@ export default function AiChatModal({ visible, onClose }: AiChatModalProps) {
               multiline
               maxLength={500}
             />
-            <TouchableOpacity 
-              style={[styles.sendButton, !inputText.trim() && { backgroundColor: '#F3F4F6', shadowOpacity: 0 }]} 
+            <TouchableOpacity
+              style={[styles.sendButton, !inputText.trim() && { backgroundColor: '#F3F4F6', shadowOpacity: 0 }]}
               onPress={handleSend}
               disabled={!inputText.trim() || loading}
               activeOpacity={0.8}
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
   userText: { color: '#FFF' },
   loadingContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 25, paddingBottom: 15 },
   loadingText: { marginLeft: 10, color: '#6B7280', fontStyle: 'italic', fontSize: 13, fontWeight: '600' },
-  inputContainer: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', alignItems: 'flex-end', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
+  inputContainer: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', alignItems: 'flex-end', paddingBottom: Platform.OS === 'ios' ? 60 : 40 },
   input: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 24, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, minHeight: 48, maxHeight: 120, fontSize: 16, color: '#111', borderWidth: 1, borderColor: '#F1F5F9' },
   sendButton: { backgroundColor: '#D4F93D', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginLeft: 12, shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 2 }
 });

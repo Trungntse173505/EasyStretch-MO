@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { scheduleWaterReminders } from '@/utils/waterNotificationHelper';
 
 export default function WaterSettingsScreen() {
   const router = useRouter();
@@ -41,13 +42,16 @@ export default function WaterSettingsScreen() {
     const result = await updateSettings(payload);
 
     if (result.success) {
+      // Hẹn giờ local notification
+      await scheduleWaterReminders(wakeTime, sleepTime, Number(interval));
+
       Alert.alert(
         "Thành công", 
         "Đã cập nhật mục tiêu và lịch nhắc nhở uống nước!",
         [{ text: "OK", onPress: () => router.back() }]
       );
-    } else {
-      Alert.alert("Lỗi", result.message);
+    } else if (!result.success) {
+      Alert.alert("Lỗi", result.message ?? "Đã xảy ra lỗi, vui lòng thử lại.");
     }
   };
 
@@ -59,7 +63,8 @@ export default function WaterSettingsScreen() {
           <Ionicons name="arrow-back-outline" size={28} color="#111" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cài đặt Mục tiêu</Text>
-        <View style={{ width: 28 }} /> {/* Để title ra giữa */}
+        {/* Spacer để title ra giữa */}
+        <View style={{ width: 28 }} />
       </View>
 
       <KeyboardAvoidingView 

@@ -85,7 +85,9 @@ export default function CoursePlayerScreen() {
         </SafeAreaView>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.bgLight}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.bgLight} contentContainerStyle={{paddingTop: 12}}>
+        <View style={styles.dragPill} />
+        
         {/* CURRENT EXERCISE INFO */}
         <View style={styles.infoBox}>
           <Text style={styles.playingTitle}>{activeEx?.title || "Đang tải bài tập..."}</Text>
@@ -147,42 +149,44 @@ export default function CoursePlayerScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  bgLight: { flex: 1, backgroundColor: '#FAFAFA', borderTopLeftRadius: 32, borderTopRightRadius: 32, marginTop: -20, paddingTop: 6 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' },
+  bgLight: { flex: 1, backgroundColor: '#F8FAFC', borderTopLeftRadius: 40, borderTopRightRadius: 40, marginTop: -32, paddingTop: 6, shadowColor: '#000', shadowOffset: {width: 0, height: -6}, shadowOpacity: 0.1, shadowRadius: 15, elevation: 15 },
+  dragPill: { width: 48, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1', alignSelf: 'center', marginBottom: 16 },
+  
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
   errorText: { color: '#64748B', fontWeight: '600', marginBottom: 20 },
-  backBtnRed: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#111', borderRadius: 24 },
+  backBtnRed: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#1E293B', borderRadius: 24 },
   backBtnText: { color: '#FFF', fontWeight: '900' },
 
-  videoArea: { width: '100%', height: 280, backgroundColor: '#000', paddingBottom: 20 },
+  videoArea: { width: '100%', height: 300, backgroundColor: '#000', paddingBottom: 32 },
   cover: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.6)' },
   backContainer: { position: 'absolute', top: 0, left: 16, zIndex: 10 },
-  circleBack: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+  circleBack: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginTop: 10 },
 
-  infoBox: { padding: 24, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  playingTitle: { fontSize: 22, fontWeight: '900', color: '#111', marginBottom: 6, letterSpacing: -0.5 },
-  playingDesc: { fontSize: 14, color: '#64748B', lineHeight: 22, marginBottom: 16 },
+  infoBox: { padding: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#FFF', marginHorizontal: 20, borderRadius: 24, shadowColor: '#000', shadowOffset: {width:0,height:4}, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2, marginBottom: 16 },
+  playingTitle: { fontSize: 24, fontWeight: '900', color: '#1E293B', marginBottom: 8, letterSpacing: -0.5 },
+  playingDesc: { fontSize: 15, color: '#475569', lineHeight: 24, marginBottom: 16 },
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  tagText: { fontSize: 11, fontWeight: '800', color: '#475569', textTransform: 'uppercase' },
+  tag: { backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  tagText: { fontSize: 12, fontWeight: '800', color: '#3B82F6', textTransform: 'uppercase' },
 
-  playlistBox: { padding: 24 },
-  courseName: { fontSize: 20, fontWeight: '900', color: '#111', marginBottom: 4 },
-  levelLabel: { fontSize: 13, color: '#64748B', fontWeight: '700', textTransform: 'capitalize', marginBottom: 24 },
+  playlistBox: { paddingHorizontal: 24, paddingTop: 8 },
+  courseName: { fontSize: 22, fontWeight: '900', color: '#1E293B', marginBottom: 6 },
+  levelLabel: { fontSize: 14, color: '#10B981', fontWeight: '800', textTransform: 'uppercase', marginBottom: 28 },
 
-  dayGroup: { marginBottom: 30 },
-  dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  dayLabel: { fontSize: 18, fontWeight: '900', color: '#111' },
-  daySub: { fontSize: 12, color: '#64748B', fontWeight: '700' },
+  dayGroup: { marginBottom: 32 },
+  dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  dayLabel: { fontSize: 19, fontWeight: '900', color: '#1E293B' },
+  daySub: { fontSize: 13, color: '#64748B', fontWeight: '700' },
 
-  exCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderRadius: 20, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 2, borderWidth: 1, borderColor: '#F8FAFC' },
-  exCardActive: { backgroundColor: '#111', borderColor: '#111', shadowColor: '#111', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 6 },
-  thumb: { width: 68, height: 68, borderRadius: 12, backgroundColor: '#F1F5F9' },
-  thumbOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', borderRadius: 12 },
+  exCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 14, borderRadius: 24, marginBottom: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 3, borderWidth: 1, borderColor: '#F8FAFC' },
+  exCardActive: { backgroundColor: '#1E293B', borderColor: '#1E293B', shadowColor: '#1E293B', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 8 },
+  thumb: { width: 72, height: 72, borderRadius: 16, backgroundColor: '#F1F5F9' },
+  thumbOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', borderRadius: 16 },
   
   exMeta: { flex: 1, marginLeft: 16, justifyContent: 'center' },
-  exTitle: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 4 },
+  exTitle: { fontSize: 16, fontWeight: '800', color: '#334155', marginBottom: 6, lineHeight: 22 },
   exTitleActive: { color: '#FFF' },
   exTime: { fontSize: 13, color: '#64748B', fontWeight: '700' },
-  exTimeActive: { color: '#9CA3AF' }
+  exTimeActive: { color: '#CBD5E1' }
 });

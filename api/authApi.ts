@@ -48,6 +48,13 @@ export interface ResetPassRequest {
   password: string;
 }
 
+export interface LeaderboardUser {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  current_point: number;
+}
+
 const authApi = {
   login: (data: Login) => {
     return axiosClient.post<LoginResponse>('/users/signin', data);
@@ -71,6 +78,10 @@ const authApi = {
 
   resetpass: (data: ResetPassRequest) =>{
     return axiosClient.post<ApiResponse<any>>('/users/reset', data);
+  },
+
+  getLeaderboard: () => {
+    return axiosClient.get<ApiResponse<LeaderboardUser[]>>('/users/leaderboard');
   }
 };
 

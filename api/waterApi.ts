@@ -31,3 +31,17 @@ export const getWaterProgress = async (userId: string) => {
   const response = await axiosClient.get(`/water/progress/${userId}`);
   return response.data;
 };
+
+// 4. Lấy toàn bộ lịch sử uống nước
+export const getWaterLog = async (userId: string) => {
+  const response = await axiosClient.get(`/water/log/${userId}`);
+  return response.data;
+};
+
+// 5. Lấy lịch sử uống nước theo ngày cụ thể
+export const getWaterLogByDay = async (userId: string, date: string) => {
+  const response = await axiosClient.get(`/water/log/daily/${userId}`, {
+    params: { date },
+  });
+  return response.data;
+};

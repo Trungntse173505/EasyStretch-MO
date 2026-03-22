@@ -1,19 +1,21 @@
 // app/water/index.tsx
 import { useUser } from '@/hooks/auth/useUser';
 import { useWaterLog } from '@/hooks/water/useWaterLog';
+import { useWaterLogByDay, WaterLogEntry } from '@/hooks/water/useWaterLogByDay';
 import { useWaterProgress } from '@/hooks/water/useWaterProgress';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function WaterHomeScreen() {
   const router = useRouter();
   const { user } = useUser();
-  
+
   const { progress, loading, fetchProgress } = useWaterProgress();
   const { isDrinking, addWaterLog } = useWaterLog();
+  const { logs, loading: logsLoading, fetchLogByDay } = useWaterLogByDay();
 
   // State cho Modal nhập tay
   const [isModalVisible, setModalVisible] = useState(false);
@@ -23,17 +25,22 @@ export default function WaterHomeScreen() {
     useCallback(() => {
       if (user?.id) {
         fetchProgress(user.id);
+        // Lấy lịch sử ngày hôm nay
+        const today = new Date().toISOString().split('T')[0]; // "2026-03-23"
+        fetchLogByDay(user.id, today);
       }
-    }, [user?.id, fetchProgress])
+    }, [user?.id, fetchProgress, fetchLogByDay])
   );
 
   const handleDrinkWater = async (amount: number) => {
     if (!user?.id) return;
-    
+
     const result = await addWaterLog(user.id, amount);
-    
+
     if (result.success) {
-      fetchProgress(user.id); 
+      const today = new Date().toISOString().split('T')[0];
+      fetchProgress(user.id);
+      fetchLogByDay(user.id, today);
       setModalVisible(false);
     } else {
       Alert.alert("Lỗi", result.message);
@@ -69,7 +76,7 @@ export default function WaterHomeScreen() {
         <ActivityIndicator size="large" color="#0EA5E9" style={{ marginTop: 50 }} />
       ) : (
         <View style={styles.content}>
-          
+
           {/* VÒNG TRÒN NƯỚC */}
           <View style={styles.circleOuter}>
             <View style={styles.circleInner}>
@@ -91,8 +98,8 @@ export default function WaterHomeScreen() {
           {/* CỤM NÚT ACTION */}
           <View style={styles.actionRow}>
             {/* Nút uống nhanh mặc định */}
-            <TouchableOpacity 
-              style={styles.drinkBtnMain} 
+            <TouchableOpacity
+              style={styles.drinkBtnMain}
               onPress={() => handleDrinkWater(300)}
               disabled={isDrinking}
               activeOpacity={0.85}
@@ -100,13 +107,13 @@ export default function WaterHomeScreen() {
               {isDrinking ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={styles.drinkBtnText}>Uống nhanh 250mL</Text>
+                <Text style={styles.drinkBtnText}>Uống nhanh 300mL</Text>
               )}
             </TouchableOpacity>
 
             {/* Nút phụ mở Modal Tùy chỉnh */}
-            <TouchableOpacity 
-              style={styles.drinkBtnSecondary} 
+            <TouchableOpacity
+              style={styles.drinkBtnSecondary}
               onPress={() => setModalVisible(true)}
               disabled={isDrinking}
               activeOpacity={0.8}
@@ -119,14 +126,30 @@ export default function WaterHomeScreen() {
           <View style={styles.historySection}>
             <View style={styles.historyHeader}>
               <Text style={styles.historyTitle}>Lịch sử hôm nay</Text>
-              <TouchableOpacity style={styles.viewAllBtn} activeOpacity={0.7}>
-                <Text style={styles.viewAllText}>Tất cả</Text>
-                <Ionicons name="arrow-forward" size={16} color="#0EA5E9" />
-              </TouchableOpacity>
             </View>
-            <Text style={styles.historyEmptyText}>
-              Bắt đầu ghi lại lượng nước bạn uống để duy trì cơ thể khỏe mạnh mỗi ngày!
-            </Text>
+            {logsLoading ? (
+              <ActivityIndicator color="#0EA5E9" style={{ marginTop: 20 }} />
+            ) : logs.length === 0 ? (
+              <Text style={styles.historyEmptyText}>
+                Bắt đầu ghi lại lượng nước bạn uống để duy trì cơ thể khỏe mạnh mỗi ngày!
+              </Text>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {logs.map((item: WaterLogEntry, index: number) => {
+                  const time = new Date(item.logged_at);
+                  const hhmm = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+                  return (
+                    <View key={item.id || index} style={styles.logItem}>
+                      <View style={styles.logIconWrap}>
+                        <Ionicons name="water" size={20} color="#0EA5E9" />
+                      </View>
+                      <Text style={styles.logAmount}>+{item.amount_ml} mL</Text>
+                      <Text style={styles.logTime}>{hhmm}</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
           </View>
 
         </View>
@@ -137,7 +160,7 @@ export default function WaterHomeScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Nhập lượng nước (mL)</Text>
-            
+
             <TextInput
               style={styles.modalInput}
               keyboardType="numeric"
@@ -160,7 +183,7 @@ export default function WaterHomeScreen() {
               <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setModalVisible(false)} activeOpacity={0.8}>
                 <Text style={styles.modalCancelText}>Hủy</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity style={styles.modalConfirmBtn} onPress={submitCustomAmount} disabled={isDrinking} activeOpacity={0.8}>
                 {isDrinking ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalConfirmText}>Ghi nhận</Text>}
               </TouchableOpacity>
@@ -177,9 +200,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
   header: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, alignItems: 'center', paddingTop: 10, paddingBottom: 15 },
   headerTitle: { fontSize: 22, fontWeight: '900', color: '#111' },
-  
+
   content: { flex: 1, alignItems: 'center', paddingTop: 40 },
-  
+
   circleOuter: { width: 280, height: 280, borderRadius: 140, backgroundColor: '#F0F9FF', justifyContent: 'center', alignItems: 'center', marginBottom: 40, borderWidth: 8, borderColor: '#E0F2FE', shadowColor: '#0EA5E9', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 },
   circleInner: { width: 240, height: 240, borderRadius: 120, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', position: 'relative' },
   waterWave: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#0EA5E9', opacity: 0.8 },
@@ -199,6 +222,12 @@ const styles = StyleSheet.create({
   viewAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   viewAllText: { color: '#0EA5E9', fontSize: 14, fontWeight: '700' },
   historyEmptyText: { textAlign: 'center', color: '#94A3B8', fontSize: 14, marginTop: 20, fontStyle: 'italic', paddingHorizontal: 20, lineHeight: 22 },
+
+  // Styles cho từng dòng log uống nước
+  logItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 12 },
+  logIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F0F9FF', justifyContent: 'center', alignItems: 'center' },
+  logAmount: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111' },
+  logTime: { fontSize: 14, fontWeight: '600', color: '#94A3B8' },
 
   // STYLES CHO MODAL NHẬP NƯỚC
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },

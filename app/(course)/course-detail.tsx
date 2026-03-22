@@ -25,12 +25,12 @@ export default function CourseDetailScreen() {
       {
         text: "Đồng ý",
         onPress: async () => {
-          const redirectLink = Linking.createURL('course-detail'); 
+          const redirectLink = Linking.createURL('course-detail');
           const payload = {
-            amount: Math.floor(Number(price)), 
-            description: "Thanh toan khoa hoc", 
+            amount: Math.floor(Number(price)),
+            description: "Thanh toan khoa hoc",
             items: [{ name: id as string, quantity: 1, price: Math.floor(Number(price)) }],
-            returnUrl: redirectLink, 
+            returnUrl: redirectLink,
             cancelUrl: redirectLink
           };
           const data = await handleCreatePayment(payload);
@@ -58,23 +58,44 @@ export default function CourseDetailScreen() {
       <View style={styles.contentContainer}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 150 }}>
           <View style={styles.dragPill} />
-          
+
           <View style={styles.tagWrap}>
-             <Text style={styles.tagText}>Khóa phục hồi chuyên sâu</Text>
-             <Ionicons name="sparkles" size={14} color="#F59E0B" style={{marginLeft: 6}} />
+            <Ionicons name="leaf" size={14} color="#10B981" style={{ marginRight: 6 }} />
+            <Text style={styles.tagText}>Khóa phục hồi chuyên sâu</Text>
           </View>
-          
+
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>Khóa học này sẽ giúp bạn giãn cơ sâu, giảm đau mỏi nhanh chóng và cải thiện tư thế chỉ với 15 phút mỗi ngày với sự kết hợp của Yoga và giãn cơ cơ bản.</Text>
-          
+
           <Text style={styles.sectionHeader}>Lợi ích khóa học</Text>
-          <View style={styles.featureList}>
+          <View style={styles.featureBox}>
             {['Khắc phục gù lưng, mỏi cổ', 'Tăng cường tuần hoàn máu', 'Video hướng dẫn chi tiết từ HLV'].map((f, i) => (
               <View key={i} style={styles.featureItem}>
-                 <Ionicons name="checkmark-circle" size={20} color="#111" />
-                 <Text style={styles.featureText}>{f}</Text>
+                <View style={styles.featureIconWrap}>
+                  <Ionicons name="checkmark" size={18} color="#FFF" />
+                </View>
+                <Text style={styles.featureText}>{f}</Text>
               </View>
             ))}
+          </View>
+
+          {/* Stats section (Dummy data layout purely for UI improvement) */}
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Ionicons name="time-outline" size={24} color="#0EA5E9" style={styles.statIcon} />
+              <Text style={styles.statValue}>15p</Text>
+              <Text style={styles.statLabel}>Mỗi ngày</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Ionicons name="flame-outline" size={24} color="#F43F5E" style={styles.statIcon} />
+              <Text style={styles.statValue}>150</Text>
+              <Text style={styles.statLabel}>Kcal/bài</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Ionicons name="cellular-outline" size={24} color="#8B5CF6" style={styles.statIcon} />
+              <Text style={styles.statValue}>Cơ bản</Text>
+              <Text style={styles.statLabel}>Mức độ</Text>
+            </View>
           </View>
         </ScrollView>
       </View>
@@ -85,7 +106,7 @@ export default function CourseDetailScreen() {
           <ActivityIndicator size="large" color="#111" />
         ) : hasBought ? (
           <View style={styles.actionRow}>
-            <View style={{flex: 1}}>
+            <View style={{ flex: 1 }}>
               <Text style={styles.ownedText}>Đã sở hữu</Text>
               <Text style={styles.readyText}>Sẵn sàng luyện tập</Text>
             </View>
@@ -96,7 +117,7 @@ export default function CourseDetailScreen() {
           </View>
         ) : (
           <View style={styles.actionRow}>
-            <View style={{flex: 1}}>
+            <View style={{ flex: 1 }}>
               <Text style={styles.priceLabel}>Chỉ từ</Text>
               <Text style={styles.priceText}>{Number(price).toLocaleString('vi-VN')}đ</Text>
             </View>
@@ -111,36 +132,43 @@ export default function CourseDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
-  headerCover: { width: '100%', height: 350 },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  headerCover: { width: '100%', height: 380 },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.4)' },
   backButtonSafeArea: { position: 'absolute', top: 0, left: 20, zIndex: 10 },
-  backButton: { width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
-  
-  contentContainer: { flex: 1, marginTop: -40, backgroundColor: '#FFF', borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 16 },
-  dragPill: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: 24 },
-  
-  tagWrap: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, marginBottom: 16 },
-  tagText: { fontSize: 13, fontWeight: '800', color: '#D97706' },
-  
-  title: { fontSize: 28, fontWeight: '900', color: '#111', marginBottom: 16, lineHeight: 36, letterSpacing: -0.5 },
-  description: { fontSize: 16, color: '#475569', lineHeight: 26, marginBottom: 24 },
-  
-  sectionHeader: { fontSize: 19, fontWeight: '900', color: '#111', marginBottom: 16 },
-  featureList: { gap: 14 },
+  backButton: { width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
+
+  contentContainer: { flex: 1, marginTop: -50, backgroundColor: '#FFF', borderTopLeftRadius: 40, borderTopRightRadius: 40, paddingHorizontal: 24, paddingTop: 16, shadowColor: '#000', shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.08, shadowRadius: 15, elevation: 10 },
+  dragPill: { width: 48, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1', alignSelf: 'center', marginBottom: 28 },
+
+  tagWrap: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#ECFDF5', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginBottom: 16 },
+  tagText: { fontSize: 13, fontWeight: '800', color: '#10B981' },
+
+  title: { fontSize: 26, fontWeight: '900', color: '#1E293B', marginBottom: 12, lineHeight: 36, letterSpacing: -0.5 },
+  description: { fontSize: 16, color: '#64748B', lineHeight: 26, marginBottom: 28 },
+
+  sectionHeader: { fontSize: 18, fontWeight: '800', color: '#1E293B', marginBottom: 16 },
+  featureBox: { gap: 14, backgroundColor: '#F8FAFC', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9' },
   featureItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  featureText: { fontSize: 15, color: '#334155', fontWeight: '600' },
-  
-  bottomBar: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#FFF', paddingHorizontal: 24, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 24 : 40, borderTopWidth: 1, borderTopColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 15, elevation: 20 },
+  featureIconWrap: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center' },
+  featureText: { fontSize: 15, color: '#334155', fontWeight: '600', flexShrink: 1 },
+
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 24 },
+  statBox: { flex: 1, alignItems: 'center', backgroundColor: '#FFF', paddingVertical: 18, marginHorizontal: 4, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  statIcon: { marginBottom: 8 },
+  statValue: { fontSize: 16, fontWeight: '800', color: '#1E293B', marginBottom: 2 },
+  statLabel: { fontSize: 12, color: '#94A3B8', fontWeight: '600' },
+
+  bottomBar: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#FFF', paddingHorizontal: 24, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 24 : 40, borderTopLeftRadius: 36, borderTopRightRadius: 36, shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 20, borderWidth: 1, borderColor: '#F8FAFC' },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  
-  priceLabel: { fontSize: 13, color: '#64748B', fontWeight: '700', textTransform: 'uppercase' },
-  priceText: { fontSize: 28, fontWeight: '900', color: '#111', letterSpacing: -1 },
-  buyButton: { backgroundColor: '#111', paddingHorizontal: 32, paddingVertical: 18, borderRadius: 30, shadowColor: '#111', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
-  buyButtonText: { color: '#D4F93D', fontSize: 16, fontWeight: '900' },
-  
-  ownedText: { fontSize: 14, color: '#059669', fontWeight: '800', textTransform: 'uppercase' },
-  readyText: { fontSize: 20, fontWeight: '900', color: '#111' },
-  playButton: { backgroundColor: '#D4F93D', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 28, paddingVertical: 18, borderRadius: 30, shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
-  playButtonText: { color: '#111', fontSize: 16, fontWeight: '900' },
+
+  priceLabel: { fontSize: 13, color: '#94A3B8', fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 },
+  priceText: { fontSize: 28, fontWeight: '900', color: '#1E293B', letterSpacing: -1 },
+  buyButton: { backgroundColor: '#1E293B', paddingHorizontal: 36, paddingVertical: 18, borderRadius: 100, shadowColor: '#1E293B', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6 },
+  buyButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+
+  ownedText: { fontSize: 14, color: '#10B981', fontWeight: '800', textTransform: 'uppercase', marginBottom: 2 },
+  readyText: { fontSize: 20, fontWeight: '900', color: '#1E293B' },
+  playButton: { backgroundColor: '#D4F93D', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 28, paddingVertical: 18, borderRadius: 100, shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
+  playButtonText: { color: '#1E293B', fontSize: 16, fontWeight: '900' },
 });
