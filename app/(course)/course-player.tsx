@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import axiosClient from '../../api/axiosClient';
@@ -26,12 +26,14 @@ export default function CoursePlayerScreen() {
   const [activeKey, setActiveKey] = useState<string | null>(null); 
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null); // State mới để lưu thông báo lỗi
 
   useEffect(() => {
     const fetchCourse = async () => {
       try {
         if (!id) return;
         setLoading(true);
+        setErrorMsg(null);
         const res = await axiosClient.get(`/courses/payment/${id}`);
         const data = res.data?.data || res.data;
 
@@ -43,9 +45,16 @@ export default function CoursePlayerScreen() {
             setActiveKey(`${data.course_days[0].id}-${firstExItem.exercises.id}-${firstExItem.order_index}`);
             setPlaying(false);
           }
-        } else Alert.alert("Lỗi", "Không tìm thấy nội dung khóa học.");
-      } catch (e) {
-        Alert.alert("Lỗi", "Không thể tải dữ liệu.");
+        } else {
+            setErrorMsg("Không tìm thấy nội dung khóa học.");
+        }
+      } catch (e: any) {
+        // Xử lý lỗi từ API, đặc biệt là lỗi 403/400 khi chưa kích hoạt khóa học
+        if (e.response?.status === 403 || e.response?.status === 400 || e.response?.status === 404) {
+            setErrorMsg("Bạn chưa kích hoạt khóa học này. Vui lòng quay lại và kiểm tra trên Website.");
+        } else {
+            setErrorMsg("Không thể tải dữ liệu lúc này. Vui lòng thử lại sau.");
+        }
       } finally { setLoading(false); }
     };
     fetchCourse();
@@ -57,10 +66,15 @@ export default function CoursePlayerScreen() {
   }, []);
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#111" /></View>;
-  if (!course) return (
+  
+  // Hiển thị giao diện lỗi nếu có errorMsg hoặc không có course
+  if (errorMsg || !course) return (
     <View style={styles.center}>
-      <Text style={styles.errorText}>Lỗi tải dữ liệu.</Text>
-      <TouchableOpacity style={styles.backBtnRed} onPress={() => router.back()}><Text style={styles.backBtnText}>QUAY LẠI</Text></TouchableOpacity>
+      <Ionicons name="alert-circle-outline" size={64} color="#64748B" style={{ marginBottom: 16 }} />
+      <Text style={styles.errorText}>{errorMsg || "Lỗi tải dữ liệu."}</Text>
+      <TouchableOpacity style={styles.backBtnRed} onPress={() => router.back()}>
+          <Text style={styles.backBtnText}>QUAY LẠI</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -152,10 +166,10 @@ const styles = StyleSheet.create({
   bgLight: { flex: 1, backgroundColor: '#F8FAFC', borderTopLeftRadius: 40, borderTopRightRadius: 40, marginTop: -32, paddingTop: 6, shadowColor: '#000', shadowOffset: {width: 0, height: -6}, shadowOpacity: 0.1, shadowRadius: 15, elevation: 15 },
   dragPill: { width: 48, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1', alignSelf: 'center', marginBottom: 16 },
   
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
-  errorText: { color: '#64748B', fontWeight: '600', marginBottom: 20 },
-  backBtnRed: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#1E293B', borderRadius: 24 },
-  backBtnText: { color: '#FFF', fontWeight: '900' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC', paddingHorizontal: 24 },
+  errorText: { color: '#64748B', fontSize: 16, fontWeight: '600', marginBottom: 24, textAlign: 'center', lineHeight: 24 },
+  backBtnRed: { paddingHorizontal: 32, paddingVertical: 14, backgroundColor: '#1E293B', borderRadius: 100 },
+  backBtnText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
 
   videoArea: { width: '100%', height: 300, backgroundColor: '#000', paddingBottom: 32 },
   cover: { flex: 1, justifyContent: 'center', alignItems: 'center' },

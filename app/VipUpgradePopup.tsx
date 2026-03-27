@@ -1,14 +1,13 @@
-import { useMemberPayment } from "@/hooks/member/useMemberPayment";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface VipProps { visible: boolean; onClose: () => void; }
 
 export default function VipUpgradePopup({ visible, onClose }: VipProps) {
   const anim = useRef(new Animated.Value(0)).current;
   const [isRendered, setIsRendered] = useState(false);
-  const { loadingPayment, errorPayment, handleUpgradeVip } = useMemberPayment();
 
   useEffect(() => {
     if (visible) {
@@ -20,22 +19,29 @@ export default function VipUpgradePopup({ visible, onClose }: VipProps) {
   }, [visible]);
 
   const handleClose = () => {
-    if (loadingPayment) return;
     Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
       setIsRendered(false);
       onClose();
     });
   };
 
-  const handleConfirm = async () => {
-    const res = await handleUpgradeVip("myapp://payment-success", "myapp://payment-cancel");
-    const url = res?.checkoutUrl || res?.data?.checkoutUrl || res?.paymentUrl || res?.data?.paymentUrl || res?.url || res?.data?.url;
-    if (url) {
-      Linking.openURL(url);
-      handleClose();
-    } else if (res) {
-      Alert.alert("Lỗi thanh toán", "Không tìm thấy link: " + JSON.stringify(res).substring(0, 100));
-    }
+  const handleWebUpgrade = async () => {
+    const websiteUrl = "myfitness-web.com";
+    Alert.alert(
+      "Nâng cấp Đặc Quyền VIP", 
+      `Để mở khóa toàn bộ tính năng cao cấp, vui lòng truy cập website:\n${websiteUrl}\nđể đăng ký tài khoản PRO.`,
+      [
+        { text: "Đóng", style: "cancel" },
+        { 
+          text: "Sao chép Website", 
+          onPress: async () => {
+            await Clipboard.setStringAsync(websiteUrl);
+            Alert.alert("Thành công", "Đã sao chép địa chỉ website. Bạn hãy mở trình duyệt (Safari/Chrome) và dán vào nhé!");
+            handleClose(); 
+          } 
+        }
+      ]
+    );
   };
 
   if (!isRendered) return null;
@@ -58,7 +64,7 @@ export default function VipUpgradePopup({ visible, onClose }: VipProps) {
           <View style={styles.priceCard}>
             <View>
               <Text style={styles.priceLabel}>Gói 1 Tháng</Text>
-              <Text style={styles.priceSub}>Tự động gia hạn</Text>
+              <Text style={styles.priceSub}>Chỉ hỗ trợ trên Website</Text>
             </View>
             <Text style={styles.priceAmount}>99k<Text style={{ fontSize: 14, color: '#9CA3AF' }}>/tháng</Text></Text>
           </View>
@@ -72,10 +78,8 @@ export default function VipUpgradePopup({ visible, onClose }: VipProps) {
             ))}
           </View>
 
-          {errorPayment && <Text style={styles.error}>{errorPayment}</Text>}
-
-          <TouchableOpacity style={styles.btn} onPress={handleConfirm} disabled={loadingPayment} activeOpacity={0.85}>
-            {loadingPayment ? <ActivityIndicator color="#111" /> : <Text style={styles.btnText}>Thanh toán ngay</Text>}
+          <TouchableOpacity style={styles.btn} onPress={handleWebUpgrade} activeOpacity={0.85}>
+            <Text style={styles.btnText}>Nâng cấp qua Website</Text>
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
@@ -95,14 +99,13 @@ const styles = StyleSheet.create({
 
   priceCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#FAFAFA", borderWidth: 2, borderColor: "#111", borderRadius: 24, padding: 24, marginBottom: 30 },
   priceLabel: { fontSize: 18, fontWeight: "900", color: "#111" },
-  priceSub: { fontSize: 14, color: "#64748B", marginTop: 4, fontWeight: "600" },
+  priceSub: { fontSize: 13, color: "#64748B", marginTop: 4, fontWeight: "600" },
   priceAmount: { fontSize: 32, fontWeight: "900", color: "#111", letterSpacing: -1 },
 
   benefits: { marginBottom: 35, gap: 14 },
   benefitRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   benefitText: { fontSize: 15, color: '#475569', fontWeight: '700' },
 
-  error: { color: "#EF4444", fontSize: 14, fontWeight: "700", textAlign: "center", marginBottom: 16 },
   btn: { backgroundColor: "#D4F93D", borderRadius: 30, paddingVertical: 18, alignItems: "center", shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
   btnText: { color: "#111", fontSize: 17, fontWeight: "900" },
 });

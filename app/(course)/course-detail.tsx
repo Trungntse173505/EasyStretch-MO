@@ -1,6 +1,6 @@
-import { useCoursePayment } from '@/hooks/course/useCoursePayment';
+import { useCourseOwnership } from '@/hooks/course/useCourseOwnership';
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
+import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Alert, AppState, ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -8,38 +8,36 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CourseDetailScreen() {
   const router = useRouter();
-  const { id, title, price, img_url, status } = useLocalSearchParams();
-  const { hasBought, loadingPayment, checkOwnership, handleCreatePayment } = useCoursePayment();
+  const { id, title, img_url } = useLocalSearchParams();
+  const { hasBought, loading, checkOwnership } = useCourseOwnership();
 
   useEffect(() => {
     if (id) checkOwnership(id as string);
+    
+    // Tự động kiểm tra lại khi user từ trình duyệt (web) quay trở lại app
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active' && id) checkOwnership(id as string);
     });
     return () => subscription.remove();
-  }, [id, status, checkOwnership]);
+  }, [id, checkOwnership]);
 
-  const onBuyCourse = () => {
-    Alert.alert("Xác nhận", `Mua khóa học "${title}" với giá ${Number(price).toLocaleString('vi-VN')} đ?`, [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Đồng ý",
-        onPress: async () => {
-          const redirectLink = Linking.createURL('course-detail');
-          const payload = {
-            amount: Math.floor(Number(price)),
-            description: "Thanh toan khoa hoc",
-            items: [{ name: id as string, quantity: 1, price: Math.floor(Number(price)) }],
-            returnUrl: redirectLink,
-            cancelUrl: redirectLink
-          };
-          const data = await handleCreatePayment(payload);
-          if (data?.checkoutUrl) {
-            Linking.openURL(data.checkoutUrl).catch(() => Alert.alert("Lỗi", "Không thể mở trang thanh toán."));
-          }
+  const handleShowGuidance = async () => {
+    const websiteUrl = "myfitness-web.com";
+
+    Alert.alert(
+      "Khóa học chưa kích hoạt", 
+      `Để bắt đầu tập luyện, bạn cần kích hoạt khóa học này.\n\nVui lòng truy cập website:\n${websiteUrl}\nđể quản lý tài khoản và đăng ký.`,
+      [
+        { text: "Đóng", style: "cancel" },
+        { 
+          text: "Sao chép Website", 
+          onPress: async () => {
+            await Clipboard.setStringAsync(websiteUrl);
+            Alert.alert("Thành công", "Đã sao chép địa chỉ website. Bạn hãy mở trình duyệt (Safari/Chrome) và dán vào nhé!");
+          } 
         }
-      }
-    ]);
+      ]
+    );
   };
 
   return (
@@ -63,46 +61,14 @@ export default function CourseDetailScreen() {
             <Ionicons name="leaf" size={14} color="#10B981" style={{ marginRight: 6 }} />
             <Text style={styles.tagText}>Khóa phục hồi chuyên sâu</Text>
           </View>
-
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>Khóa học này sẽ giúp bạn giãn cơ sâu, giảm đau mỏi nhanh chóng và cải thiện tư thế chỉ với 15 phút mỗi ngày với sự kết hợp của Yoga và giãn cơ cơ bản.</Text>
-
-          <Text style={styles.sectionHeader}>Lợi ích khóa học</Text>
-          <View style={styles.featureBox}>
-            {['Khắc phục gù lưng, mỏi cổ', 'Tăng cường tuần hoàn máu', 'Video hướng dẫn chi tiết từ HLV'].map((f, i) => (
-              <View key={i} style={styles.featureItem}>
-                <View style={styles.featureIconWrap}>
-                  <Ionicons name="checkmark" size={18} color="#FFF" />
-                </View>
-                <Text style={styles.featureText}>{f}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Stats section (Dummy data layout purely for UI improvement) */}
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Ionicons name="time-outline" size={24} color="#0EA5E9" style={styles.statIcon} />
-              <Text style={styles.statValue}>15p</Text>
-              <Text style={styles.statLabel}>Mỗi ngày</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Ionicons name="flame-outline" size={24} color="#F43F5E" style={styles.statIcon} />
-              <Text style={styles.statValue}>150</Text>
-              <Text style={styles.statLabel}>Kcal/bài</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Ionicons name="cellular-outline" size={24} color="#8B5CF6" style={styles.statIcon} />
-              <Text style={styles.statValue}>Cơ bản</Text>
-              <Text style={styles.statLabel}>Mức độ</Text>
-            </View>
-          </View>
         </ScrollView>
       </View>
 
       {/* FLOATING ACTION BOTTOM */}
       <View style={styles.bottomBar}>
-        {loadingPayment ? (
+        {loading ? (
           <ActivityIndicator size="large" color="#111" />
         ) : hasBought ? (
           <View style={styles.actionRow}>
@@ -118,11 +84,11 @@ export default function CourseDetailScreen() {
         ) : (
           <View style={styles.actionRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.priceLabel}>Chỉ từ</Text>
-              <Text style={styles.priceText}>{Number(price).toLocaleString('vi-VN')}đ</Text>
+              <Text style={styles.priceLabel}>Trạng thái</Text>
+              <Text style={styles.notOwnedText}>Chưa kích hoạt</Text>
             </View>
-            <TouchableOpacity style={styles.buyButton} onPress={onBuyCourse} activeOpacity={0.9}>
-              <Text style={styles.buyButtonText}>Mua ngay</Text>
+            <TouchableOpacity style={styles.buyButton} onPress={handleShowGuidance} activeOpacity={0.9}>
+              <Text style={styles.buyButtonText}>Kích hoạt trên Web</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -159,16 +125,16 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontWeight: '800', color: '#1E293B', marginBottom: 2 },
   statLabel: { fontSize: 12, color: '#94A3B8', fontWeight: '600' },
 
-  bottomBar: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#FFF', paddingHorizontal: 24, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 24 : 40, borderTopLeftRadius: 36, borderTopRightRadius: 36, shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 20, borderWidth: 1, borderColor: '#F8FAFC' },
+  bottomBar: { position: 'absolute', bottom: 10, width: '100%', backgroundColor: '#FFF', paddingHorizontal: 24, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 24 : 40, borderTopLeftRadius: 36, borderTopRightRadius: 36, shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 20, borderWidth: 1, borderColor: '#F8FAFC' },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-
-  priceLabel: { fontSize: 13, color: '#94A3B8', fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 },
-  priceText: { fontSize: 28, fontWeight: '900', color: '#1E293B', letterSpacing: -1 },
-  buyButton: { backgroundColor: '#1E293B', paddingHorizontal: 36, paddingVertical: 18, borderRadius: 100, shadowColor: '#1E293B', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6 },
-  buyButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
 
   ownedText: { fontSize: 14, color: '#10B981', fontWeight: '800', textTransform: 'uppercase', marginBottom: 2 },
   readyText: { fontSize: 20, fontWeight: '900', color: '#1E293B' },
   playButton: { backgroundColor: '#D4F93D', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 28, paddingVertical: 18, borderRadius: 100, shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
   playButtonText: { color: '#1E293B', fontSize: 16, fontWeight: '900' },
+
+  priceLabel: { fontSize: 13, color: '#94A3B8', fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 },
+  notOwnedText: { fontSize: 22, fontWeight: '900', color: '#64748B', letterSpacing: -0.5 },
+  buyButton: { backgroundColor: '#1E293B', paddingHorizontal: 24, paddingVertical: 18, borderRadius: 100, shadowColor: '#1E293B', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6 },
+  buyButtonText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
 });
