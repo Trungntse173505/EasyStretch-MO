@@ -4,8 +4,8 @@ import axiosClient from './axiosClient';
 export interface WaterSettingsRequest {
   user_id: string;
   daily_goal_ml: number;
-  wake_time: string; 
-  sleep_time: string; 
+  wake_time: string;
+  sleep_time: string;
   reminder_interval_mins: number;
 }
 
@@ -43,5 +43,11 @@ export const getWaterLogByDay = async (userId: string, date: string) => {
   const response = await axiosClient.get(`/water/log/daily/${userId}`, {
     params: { date },
   });
+  return response.data;
+};
+
+// 6. Lấy mục tiêu nước của user
+export const getWaterSettings = async (userId: string) => {
+  const response = await axiosClient.get(`/water/${userId}`);
   return response.data;
 };

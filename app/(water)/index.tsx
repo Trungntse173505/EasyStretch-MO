@@ -25,8 +25,7 @@ export default function WaterHomeScreen() {
     useCallback(() => {
       if (user?.id) {
         fetchProgress(user.id);
-        // Lấy lịch sử ngày hôm nay
-        const today = new Date().toISOString().split('T')[0]; // "2026-03-23"
+        const today = new Date().toISOString().split('T')[0];
         fetchLogByDay(user.id, today);
       }
     }, [user?.id, fetchProgress, fetchLogByDay])

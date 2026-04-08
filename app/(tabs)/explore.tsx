@@ -1,15 +1,40 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React from "react";
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ExploreScreen() {
   const router = useRouter();
 
+  const handlePressNutrition = async () => {
+    try {
+      const hasSeen = await AsyncStorage.getItem("HAS_SEEN_NUTRITION_INTRO");
+      if (hasSeen === "true") {
+        router.push("/(nutrition)/log");
+      } else {
+        router.push("/(nutrition)");
+      }
+    } catch (error) {
+      router.push("/(nutrition)");
+    }
+  };
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await new Promise(resolve => setTimeout(resolve, 800)); // Hiệu ứng refresh trang tĩnh
+    setRefreshing(false);
+  }, []);
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#111" />}
+      >
         {/* HEADER */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Khám Phá</Text>
@@ -47,14 +72,14 @@ export default function ExploreScreen() {
         {/* ĐIỀU HƯỚNG DINH DƯỠNG */}
         <View style={styles.sectionHeader}>
            <Text style={styles.sectionTitle}>Dinh Dưỡng</Text>
-           <TouchableOpacity onPress={() => router.push('/(nutrition)')}>
+           <TouchableOpacity onPress={handlePressNutrition}>
               <Text style={styles.seeAllText}>Chi tiết</Text>
            </TouchableOpacity>
         </View>
 
         <TouchableOpacity
           style={styles.nutritionCard}
-          onPress={() => router.push('/(nutrition)')}
+          onPress={handlePressNutrition}
           activeOpacity={0.9}
         >
           <View style={styles.nutriContent}>

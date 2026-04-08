@@ -1,30 +1,56 @@
 // hooks/water/useWaterSettings.ts
-import { useState } from 'react';
-import { updateWaterSettings, WaterSettingsRequest } from '../../api/waterApi';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useState } from 'react';
+import { getWaterSettings, updateWaterSettings, WaterSettingsRequest } from '../../api/waterApi';
 
-type UpdateResult =
-  | { success: true; data: any }
-  | { success: false; message: string };
+const SETTINGS_KEY = '@water_settings';
 
 export const useWaterSettings = () => {
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const updateSettings = async (data: WaterSettingsRequest): Promise<UpdateResult> => {
-    setIsUpdating(true);
-    setError(null);
+  // HÀM 1: LẤY DỮ LIỆU (Ưu tiên lấy từ Local trước cho nhanh)
+  const fetchSettings = useCallback(async (userId: string) => {
+    setIsLoading(true);
     try {
-      const response = await updateWaterSettings(data);
-      return { success: true, data: response };
-    } catch (err: any) {
-      console.log("Lỗi cài đặt nước:", err);
-      const errMsg: string = err?.response?.data?.message || "Không thể lưu cài đặt.";
-      setError(errMsg);
-      return { success: false, message: errMsg };
+      // 1. Lấy từ máy điện thoại lên xem có không
+      const localData = await AsyncStorage.getItem(SETTINGS_KEY);
+
+      // 2. Ngầm gọi BE để lấy data mới nhất (đề phòng user vừa đổi điện thoại)
+      // Chú ý: Không dùng await ở đây để app không bị khựng lại
+      getWaterSettings(userId).then(async (res) => {
+        // Nếu BE trả về data hợp lệ, lưu đè xuống máy điện thoại
+        if (res && res.data) {
+          await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(res.data));
+        }
+      }).catch(err => console.log("Lỗi đồng bộ ngầm từ BE:", err));
+
+      // 3. Trả về kết quả cho màn hình hiển thị
+      if (localData) {
+        return JSON.parse(localData); // Trả về data có sẵn trong máy liền lập tức
+      } else {
+        // Nếu máy trắng tinh (mới cài app), thì phải ráng chờ BE trả về
+        const res = await getWaterSettings(userId);
+        if (res && res.data) {
+          await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(res.data));
+          return res.data;
+        }
+      }
+    } catch (err) {
+      console.log("Lỗi tải cài đặt:", err);
     } finally {
-      setIsUpdating(false);
+      setIsLoading(false);
+    }
+    return null;
+  }, []);
+
+  // HÀM 2: LƯU DỮ LIỆU NGẦM (Lưu lên BE mà không bắt người dùng đợi)
+  const syncToBackend = async (data: WaterSettingsRequest) => {
+    try {
+      await updateWaterSettings(data);
+    } catch (err: any) {
+      console.log("Lỗi đẩy lên Server:", err?.response?.data?.message || err.message);
     }
   };
 
-  return { isUpdating, error, updateSettings };
+  return { isLoading, fetchSettings, syncToBackend };
 };

@@ -2,8 +2,8 @@ import { useUser } from '@/hooks/auth/useUser';
 import { useWaterProgress } from '@/hooks/water/useWaterProgress';
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ActivityScreen() {
@@ -12,18 +12,36 @@ export default function ActivityScreen() {
   const { user } = useUser();
   const { progress, fetchProgress } = useWaterProgress();
 
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+
   useFocusEffect(
     useCallback(() => {
       if (user?.id) {
-        fetchProgress(user.id);
+        fetchProgress(user.id, selectedDate);
       }
-    }, [user?.id, fetchProgress])
+    }, [user?.id, fetchProgress, selectedDate])
   );
+
+  const handleSelectDate = useCallback((dateStr: string) => {
+    setSelectedDate(dateStr);
+    if (user?.id) {
+      fetchProgress(user.id, dateStr);
+    }
+  }, [user?.id, fetchProgress]);
 
   const waterPercent = progress ? Math.min(progress.percentage, 100) : 0;
 
-  const now = new Date();
-  const currentDayNum = now.getDate();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    if (user?.id) {
+      setRefreshing(true);
+      await fetchProgress(user.id, selectedDate);
+      setRefreshing(false);
+    }
+  }, [user?.id, selectedDate, fetchProgress]);
+
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
@@ -38,11 +56,14 @@ export default function ActivityScreen() {
     for (let i = 0; i < 7; i++) {
       const tempDate = new Date(startOfWeek);
       tempDate.setDate(startOfWeek.getDate() + i);
+      const dateStr = tempDate.toISOString().split('T')[0];
 
       dates.push({
         d: dayLabels[tempDate.getDay()],
         n: tempDate.getDate().toString(),
-        active: tempDate.getDate() === currentDayNum && tempDate.getMonth() === now.getMonth(),
+        dateStr,
+        active: dateStr === selectedDate,
+        isFuture: tempDate > now && dateStr !== todayStr,
       });
     }
     return dates;
@@ -52,7 +73,11 @@ export default function ActivityScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#111" />}
+      >
         {/* HEADER */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Hoạt động</Text>
@@ -66,10 +91,15 @@ export default function ActivityScreen() {
         {/* CALENDAR STRIP */}
         <View style={styles.calendarStrip}>
           {DATES.map((item, index) => (
-            <View key={index} style={[styles.dateBox, item.active && styles.activeDateBox]}>
-              <Text style={[styles.dayText, item.active && styles.activeDayText]}>{item.d}</Text>
-              <Text style={[styles.numText, item.active && styles.activeNumText]}>{item.n}</Text>
-            </View>
+            <TouchableOpacity
+              key={index}
+              style={[styles.dateBox, item.active && styles.activeDateBox, item.isFuture && styles.futureDateBox]}
+              onPress={() => !item.isFuture && handleSelectDate(item.dateStr)}
+              activeOpacity={item.isFuture ? 1 : 0.7}
+            >
+              <Text style={[styles.dayText, item.active && styles.activeDayText, item.isFuture && styles.futureDayText]}>{item.d}</Text>
+              <Text style={[styles.numText, item.active && styles.activeNumText, item.isFuture && styles.futureNumText]}>{item.n}</Text>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -173,6 +203,9 @@ const styles = StyleSheet.create({
   activeDayText: { color: "#FFF" },
   numText: { fontSize: 16, fontWeight: "800", color: "#111", marginTop: 4 },
   activeNumText: { color: "#D4F93D" },
+  futureDateBox: { opacity: 0.35 },
+  futureDayText: {},
+  futureNumText: {},
 
   sectionHeader: { marginBottom: 16 },
   sectionTitle: { fontSize: 20, fontWeight: "800", color: "#111" },

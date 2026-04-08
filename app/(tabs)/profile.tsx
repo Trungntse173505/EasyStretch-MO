@@ -1,11 +1,16 @@
 import authApi from "@/api/authApi";
+import { getWaterSettings } from "@/api/waterApi";
 import { useLogout } from "@/hooks/auth/useLogout";
+import { scheduleWaterReminders } from "@/utils/waterNotificationHelper";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View, Alert, Modal, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Notifications from 'expo-notifications';
+import { useOTP } from "@/hooks/auth/useOTP";
+import AuthInput from "../components/AuthInput";
 import VipUpgradePopup from "../VipUpgradePopup";
 
 export default function ProfileScreen() {
@@ -14,36 +19,135 @@ export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showVipPopup, setShowVipPopup] = useState(false);
+  const [masterNotiEnabled, setMasterNotiEnabled] = useState(true);
+
+  // States cho modal đổi mật khẩu
+  const [showPwdModal, setShowPwdModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+
+  const { getOTP, resetPassword, loading: otpLoading, apiError: otpError, setApiError: setOtpError } = useOTP();
 
   const isVip = user?.is_subscriber === "active";
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        setLoading(true);
-        const res = await authApi.getInfo();
-        if (res.data?.success) {
-          setUser(res.data.data);
-          await AsyncStorage.setItem("USER_INFO", JSON.stringify(res.data.data));
-        }
-      } catch (e) {
-        const userStr = await AsyncStorage.getItem("USER_INFO");
-        if (userStr) setUser(JSON.parse(userStr));
-      } finally {
-        setLoading(false);
+  const loadUserData = async () => {
+    try {
+      setLoading(true);
+      const res = await authApi.getInfo();
+      if (res.data?.success) {
+        setUser(res.data.data);
+        await AsyncStorage.setItem("USER_INFO", JSON.stringify(res.data.data));
       }
-    };
+    } catch (e) {
+      const userStr = await AsyncStorage.getItem("USER_INFO");
+      if (userStr) setUser(JSON.parse(userStr));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMasterToggle = async () => {
+    const val = await AsyncStorage.getItem("MASTER_NOTI_ENABLED");
+    if (val === "false") setMasterNotiEnabled(false);
+    else setMasterNotiEnabled(true);
+  };
+
+  useEffect(() => {
     loadUserData();
+    loadMasterToggle();
   }, []);
 
-  const MenuItem = ({ icon, label, isSwitch = false, onPress, value = false }: any) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} disabled={isSwitch} activeOpacity={0.7}>
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadUserData(), loadMasterToggle()]);
+    setRefreshing(false);
+  }, []);
+
+  const toggleMasterNoti = async (value: boolean) => {
+    setMasterNotiEnabled(value);
+    await AsyncStorage.setItem("MASTER_NOTI_ENABLED", value ? "true" : "false");
+    
+    if (!value) {
+      // SẬP CẦU DAO: Huỷ toàn bộ thông báo
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      Alert.alert("Đã tắt", "Đã ngắt toàn bộ thông báo hệ thống.");
+    } else {
+      // BẬT LẠI: Lấy cấu hình nước từ API để lên lịch lại
+      if (user?.id) {
+        try {
+          // Báo cho user chờ 1 tẹo để không bấm liên tục
+          const res = await getWaterSettings(user.id);
+          const wSet = res?.data;
+          if (wSet && wSet.wake_time && wSet.sleep_time && wSet.reminder_interval_mins) {
+             await scheduleWaterReminders(wSet.wake_time, wSet.sleep_time, wSet.reminder_interval_mins);
+             Alert.alert("Đã kích hoạt", "Hệ thống thông báo đã khôi phục hoạt động.");
+          }
+        } catch(e) {
+          console.log("Không thể fetch lại setting nước:", e);
+        }
+      }
+    }
+  };
+
+  const handleChangePasswordClick = () => {
+    if (!user?.email) {
+      Alert.alert("Không khả dụng", "Tài khoản của bạn chưa có email để nhận mã OTP.");
+      return;
+    }
+    Alert.alert(
+      "Xác nhận đổi mật khẩu",
+      `Mã OTP xác nhận sẽ được gửi về email:\n${user.email}\n\nBạn có muốn tiếp tục?`,
+      [
+        { text: "Bỏ qua", style: "cancel" },
+        {
+          text: "Đồng ý",
+          onPress: async () => {
+            const res = await getOTP(user.email);
+            if (res.success) {
+              setShowPwdModal(true);
+            } else {
+              Alert.alert("Lỗi", "Không thể gửi OTP, thử lại sau!");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleResetPassword = async () => {
+    if (!otp || !newPassword || !confirmPwd) {
+      setOtpError("Vui lòng điền đủ thông tin.");
+      return;
+    }
+    if (newPassword !== confirmPwd) {
+      setOtpError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+    const res = await resetPassword(otp, user.email, newPassword);
+    if (res.success) {
+      Alert.alert("Thành công", "Mật khẩu của bạn đã được thay đổi. Hãy sử dụng mật khẩu mới trong lần đăng nhập sau.");
+      setShowPwdModal(false);
+      setOtp("");
+      setNewPassword("");
+      setConfirmPwd("");
+    }
+  };
+
+  const MenuItem = ({ icon, label, isSwitch = false, onPress, value = false, onToggle }: any) => (
+    <TouchableOpacity style={styles.menuItem} onPress={isSwitch ? () => toggleMasterNoti(!value) : onPress} activeOpacity={0.7}>
       <View style={styles.menuLeft}>
         <View style={styles.iconWrapper}><Ionicons name={icon} size={20} color="#111" /></View>
         <Text style={styles.menuText}>{label}</Text>
       </View>
       {isSwitch ? (
-        <Switch trackColor={{ false: "#E2E8F0", true: "#D4F93D" }} thumbColor="#FFF" value={value} />
+        <Switch 
+          trackColor={{ false: "#E2E8F0", true: "#D4F93D" }} 
+          thumbColor="#FFF" 
+          value={value} 
+          onValueChange={(val) => toggleMasterNoti(val)}
+        />
       ) : (
         <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
       )}
@@ -67,7 +171,12 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView 
+        style={styles.body} 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#111" />}
+      >
         {/* VIP CARD */}
         {isVip ? (
           <View style={styles.vipCardActive}>
@@ -93,19 +202,55 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <MenuItem icon="person" label="Chỉnh sửa hồ sơ" onPress={() => router.push("/(info)/personalInfo")} />
           <View style={styles.divider} />
-          <MenuItem icon="notifications" label="Thông báo hệ thống" isSwitch value={true} />
+          <MenuItem 
+            icon="notifications" 
+            label="Thông báo hệ thống" 
+            isSwitch 
+            value={masterNotiEnabled} 
+            onPress={() => toggleMasterNoti(!masterNotiEnabled)} // Fallback in case they tap line instead of switch
+          />
+          {/* Sửa <Switch> không nhận event onPress từ container cha nếu đang focus */}
+          {/* Cần update MenuItem cho chuẩn */}
         </View>
 
         <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Bảo mật & Cài đặt</Text>
         <View style={styles.card}>
-          <MenuItem icon="lock-closed" label="Đổi mật khẩu bảo vệ" onPress={() => router.push("/(auth)/otp")} />
+          <MenuItem icon="lock-closed" label="Đổi mật khẩu bảo vệ" onPress={handleChangePasswordClick} />
           <View style={styles.divider} />
-          <MenuItem icon="shield-checkmark" label="Điều khoản & Chính sách" />
+          <MenuItem icon="shield-checkmark" label="Điều khoản & Chính sách" onPress={() => router.push("/(info)/terms")} />
           <View style={styles.divider} />
         </View>
       </ScrollView>
 
       {!isVip && <VipUpgradePopup visible={showVipPopup} onClose={() => setShowVipPopup(false)} />}
+
+      {/* OTP Reset Password Modal */}
+      <Modal visible={showPwdModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Xác nhận OTP</Text>
+              <TouchableOpacity onPress={() => setShowPwdModal(false)} activeOpacity={0.8}>
+                <Ionicons name="close-circle" size={28} color="#E2E8F0" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalDesc}>Mã 6 số đã được gửi đến {user?.email}</Text>
+            
+            <View style={{ marginTop: 12 }}>
+              <AuthInput label="Mã OTP" value={otp} onChangeText={setOtp} leftIcon="key-outline" placeholder="Nhập mã bảo mật" keyboardType="numeric" editable={!otpLoading} />
+              <AuthInput label="Mật khẩu mới" value={newPassword} onChangeText={setNewPassword} leftIcon="lock-closed-outline" placeholder="Tối thiểu 6 ký tự" secure editable={!otpLoading} />
+              <AuthInput label="Xác nhận mật khẩu" value={confirmPwd} onChangeText={setConfirmPwd} leftIcon="checkmark-circle-outline" placeholder="Nhập lại mật khẩu mới" secure editable={!otpLoading} />
+            </View>
+
+            {!!otpError && <Text style={styles.apiError}>{otpError}</Text>}
+
+            <TouchableOpacity style={[styles.modalSubmitBtn, otpLoading && { opacity: 0.6 }]} onPress={handleResetPassword} disabled={otpLoading} activeOpacity={0.85}>
+              {otpLoading ? <ActivityIndicator color="#111" /> : <Text style={styles.modalSubmitText}>HOÀN TẤT ĐỔI MẬT KHẨU</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -136,4 +281,13 @@ const styles = StyleSheet.create({
   iconWrapper: { width: 42, height: 42, backgroundColor: '#F8FAFC', borderRadius: 21, justifyContent: 'center', alignItems: 'center' },
   menuText: { fontSize: 16, fontWeight: "700", color: "#111" },
   divider: { height: 1, backgroundColor: "#F1F5F9", marginLeft: 74 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 40, shadowColor: '#000', shadowOffset: { width:0, height:-10 }, shadowOpacity: 0.1, shadowRadius: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { fontSize: 24, fontWeight: '900', color: '#111', letterSpacing: -0.5 },
+  modalDesc: { fontSize: 14, color: '#64748B', marginTop: 6, fontWeight: '500' },
+  apiError: { color: '#EF4444', marginTop: 12, textAlign: 'center', fontSize: 14, fontWeight: '600' },
+  modalSubmitBtn: { backgroundColor: '#D4F93D', paddingVertical: 18, borderRadius: 20, alignItems: 'center', marginTop: 24, shadowColor: '#D4F93D', shadowOffset: {width:0, height:8}, shadowOpacity: 0.3, shadowRadius: 15, elevation: 6 },
+  modalSubmitText: { color: '#111', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
 });

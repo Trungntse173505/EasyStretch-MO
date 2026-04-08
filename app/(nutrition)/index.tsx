@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -7,6 +8,15 @@ const bgImage = require('../../assets/images/Nutrition.png');
 
 export default function WelcomeScreen() {
   const router = useRouter();
+
+  const handleStart = async () => {
+    try {
+      await AsyncStorage.setItem("HAS_SEEN_NUTRITION_INTRO", "true");
+    } catch (e) {
+      console.log("Lỗi lưu trạng thái intro:", e);
+    }
+    router.replace('/(nutrition)/log');
+  };
 
   return (
     <ImageBackground source={bgImage} style={styles.background}>
@@ -26,7 +36,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
         
-        <TouchableOpacity style={styles.button} onPress={() => router.push('/(nutrition)/log')} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.button} onPress={handleStart} activeOpacity={0.85}>
           <Text style={styles.buttonText}>Khám phá</Text>
           <Ionicons name="arrow-forward" size={20} color="#111" />
         </TouchableOpacity>

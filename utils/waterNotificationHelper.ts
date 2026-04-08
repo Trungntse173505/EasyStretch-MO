@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Set handler cho thông báo (hiển thị kể cả khi app đang mở)
 Notifications.setNotificationHandler({
@@ -24,6 +25,13 @@ export const scheduleWaterReminders = async (
   intervalParams: number
 ) => {
   try {
+    // 0. Cầu dao tổng
+    const isMasterEnabled = await AsyncStorage.getItem("MASTER_NOTI_ENABLED");
+    if (isMasterEnabled === "false") {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      return false;
+    }
+
     // 1. Xin quyền thông báo
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;

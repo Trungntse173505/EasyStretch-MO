@@ -1,51 +1,62 @@
+import { useLeaderboard } from "@/hooks/auth/useLeaderboard";
+import { useUser } from "@/hooks/auth/useUser";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLeaderboard } from "@/hooks/auth/useLeaderboard";
-
-const LEADERBOARD_DATA = {
-  chuoi: [
-    { id: 1, name: "Minh Lộc", username: "@username", points: 24, rank: 1, avatar: "https://robohash.org/11?set=set4&size=150x150" },
-    { id: 2, name: "Thái Ngọc", username: "@username", points: 18, rank: 2, avatar: "https://robohash.org/12?set=set4&size=150x150" },
-    { id: 3, name: "Nhật Khang", username: "@username", points: 16, rank: 3, avatar: "https://robohash.org/33?set=set4&size=150x150" },
-    { id: 4, name: "Thành Trung", username: "@TrungSieuVipPro", points: 11, rank: 4, avatar: "https://robohash.org/14?set=set4&size=150x150", trend: 'up' },
-    { id: 5, name: "Minh Nhật", username: "@Nhat123", points: 8, rank: 5, avatar: "https://robohash.org/15?set=set4&size=150x150", trend: 'down' },
-    { id: 6, name: "Lê Duy", username: "@DuyLeader", points: 7, rank: 6, avatar: "https://robohash.org/16?set=set4&size=150x150", trend: 'up' },
-    { id: 7, name: "Minh Khoa", username: "@VipDesign", points: 5, rank: 7, avatar: "https://robohash.org/17?set=set4&size=150x150", trend: 'up' },
-    { id: 8, name: "Quang Trường", username: "@TruongCOCC", points: 3, rank: 8, avatar: "https://robohash.org/18?set=set4&size=150x150", trend: 'down' },
-  ],
-  diem: [
-    { id: 1, name: "Minh Lộc", username: "@username", points: 2430, rank: 1, avatar: "https://robohash.org/11?set=set4&size=150x150" },
-    { id: 2, name: "Thái Ngọc", username: "@username", points: 1847, rank: 2, avatar: "https://robohash.org/12?set=set4&size=150x150" },
-    { id: 3, name: "Nhật Khang", username: "@username", points: 1674, rank: 3, avatar: "https://robohash.org/33?set=set4&size=150x150" },
-    { id: 4, name: "Thành Trung", username: "@TrungSieuVipPro", points: 1124, rank: 4, avatar: "https://robohash.org/14?set=set4&size=150x150", trend: 'up' },
-    { id: 5, name: "Minh Nhật", username: "@Nhat123", points: 875, rank: 5, avatar: "https://robohash.org/15?set=set4&size=150x150", trend: 'down' },
-    { id: 6, name: "Lê Duy", username: "@DuyLeader", points: 774, rank: 6, avatar: "https://robohash.org/16?set=set4&size=150x150", trend: 'up' },
-    { id: 7, name: "Minh Khoa", username: "@VipDesign", points: 723, rank: 7, avatar: "https://robohash.org/17?set=set4&size=150x150", trend: 'up' },
-    { id: 8, name: "Quang Trường", username: "@TruongCOCC", points: 559, rank: 8, avatar: "https://robohash.org/18?set=set4&size=150x150", trend: 'down' },
-  ]
-};
 
 export default function LeaderboardScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'chuoi' | 'diem'>('chuoi');
+  const { user: currentUser } = useUser();
 
   const { data: leaderboardData, loading } = useLeaderboard();
 
   // Sort and map API data
-  const processedData = [...leaderboardData]
+  const processedData = [...(leaderboardData || [])]
     .sort((a, b) => (b.current_point || 0) - (a.current_point || 0))
-    .map((user, index) => ({
-      id: user.id || index,
-      name: user.full_name || "Khách",
-      username: user.full_name ? `@${user.full_name.replace(/\s+/g, '')}` : "@user",
-      points: user.current_point || 0,
-      rank: index + 1,
-      avatar: user.avatar_url || `https://robohash.org/${user.id || index}?set=set4&size=150x150`,
-      trend: 'up'
-    }));
+    .map((user, index) => {
+      // API có thể trả về id, user_id, userId hoặc _id. Fix cứng kiểm tra tất cả:
+      const rawId = user.id || (user as any).user_id || (user as any).userId || (user as any)._id;
+      const parsedId = rawId !== undefined ? String(rawId) : String(index);
+
+      return {
+        id: parsedId,
+        name: user.full_name || "Khách",
+        username: user.full_name ? `@${user.full_name.replace(/\s+/g, '')}` : "@user",
+        points: user.current_point || 0,
+        rank: index + 1,
+        avatar: user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || "Khách")}&background=random&color=fff&size=150`,
+        trend: 'up',
+        isMe: Boolean(currentUser?.id) && parsedId === String(currentUser?.id)
+      };
+    });
+
+  const myRankIndex = processedData.findIndex(u => u.isMe);
+  
+  let myData = null;
+  let isOutsideTop10 = false;
+
+  if (myRankIndex !== -1) {
+    isOutsideTop10 = myRankIndex >= 10;
+    myData = processedData[myRankIndex];
+  } else if (currentUser) {
+    // If user is completely missing from the API response (e.g., 0 points)
+    // we still try to show them at the bottom with "-" rank
+    isOutsideTop10 = true;
+    myData = {
+      id: currentUser.id,
+      name: currentUser.full_name || "Bạn",
+      username: currentUser.full_name ? `@${currentUser.full_name.replace(/\\s+/g, '')}` : "@user",
+      points: 0,
+      rank: "-",
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.full_name || "Bạn")}&background=random&color=fff&size=150`,
+      trend: 'up',
+      isMe: true
+    };
+  }
+  
+  const top10Data = processedData.slice(0, 10);
 
   // Ensure at least 3 elements for the podium to prevent crashes
   while (processedData.length < 3) {
@@ -55,13 +66,11 @@ export default function LeaderboardScreen() {
       username: "-",
       points: 0,
       rank: processedData.length + 1,
-      avatar: `https://robohash.org/dummy-${processedData.length}?set=set4&size=150x150`,
-      trend: 'up'
+      avatar: `https://ui-avatars.com/api/?name=-&background=cccccc&color=fff&size=150`,
+      trend: 'up',
+      isMe: false
     });
   }
-
-  const currentData = activeTab === 'chuoi' ? LEADERBOARD_DATA.chuoi : processedData;
-
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -75,91 +84,70 @@ export default function LeaderboardScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Tabs */}
-        <View style={styles.lbTabsRow}>
-          <TouchableOpacity
-            style={activeTab === 'chuoi' ? styles.lbTabActive : styles.lbTab}
-            onPress={() => setActiveTab('chuoi')}
-          >
-            <Text style={activeTab === 'chuoi' ? styles.lbTabTextActive : styles.lbTabText}>Chuỗi</Text>
-            {activeTab === 'chuoi' && <View style={styles.lbTabIndicator} />}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={activeTab === 'diem' ? styles.lbTabActive : styles.lbTab}
-            onPress={() => setActiveTab('diem')}
-          >
-            <Text style={activeTab === 'diem' ? styles.lbTabTextActive : styles.lbTabText}>Điểm</Text>
-            {activeTab === 'diem' && <View style={styles.lbTabIndicator} />}
-          </TouchableOpacity>
-        </View>
-
         {/* Podium */}
         <View style={styles.podiumContainer}>
           {/* Rank 2 */}
           <View style={[styles.podiumItem, { marginTop: 40 }]}>
             <View style={styles.avatarWrap2}>
-              <Image source={{ uri: currentData[1].avatar }} style={styles.podiumAvatar2} />
+              <Image source={{ uri: processedData[1].avatar }} style={styles.podiumAvatar2} />
               <View style={styles.rankBadge2}>
                 <Text style={styles.rankBadgeText}>2</Text>
               </View>
             </View>
-            <Text style={styles.podiumName}>{currentData[1].name}</Text>
+            <Text style={[styles.podiumName, processedData[1].isMe && { color: '#0EA5E9' }]}>{processedData[1].name} {processedData[1].isMe ? "\n(Bạn)" : ""}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-              <Text style={[styles.podiumPoints2, { marginBottom: 0 }]}>{currentData[1].points}</Text>
-              {activeTab === 'chuoi' && <MaterialCommunityIcons name="fire" size={18} color="#FF5A00" style={{ marginLeft: 2 }} />}
+              <Text style={[styles.podiumPoints2, { marginBottom: 0 }]}>{processedData[1].points}</Text>
             </View>
-            <Text style={styles.podiumUser}>{currentData[1].username}</Text>
+            <Text style={styles.podiumUser}>{processedData[1].username}</Text>
           </View>
 
           {/* Rank 1 */}
           <View style={[styles.podiumItem, { zIndex: 10 }]}>
             <MaterialCommunityIcons name="crown" size={36} color="#FBBF24" style={styles.crownIcon} />
             <View style={styles.avatarWrap1}>
-              <Image source={{ uri: currentData[0].avatar }} style={styles.podiumAvatar1} />
+              <Image source={{ uri: processedData[0].avatar }} style={styles.podiumAvatar1} />
               <View style={styles.rankBadge1}>
                 <Text style={styles.rankBadgeText}>1</Text>
               </View>
             </View>
-            <Text style={styles.podiumName}>{currentData[0].name}</Text>
+            <Text style={[styles.podiumName, processedData[0].isMe && { color: '#0EA5E9' }]}>{processedData[0].name} {processedData[0].isMe ? "\n(Bạn)" : ""}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-              <Text style={[styles.podiumPoints1, { marginBottom: 0 }]}>{currentData[0].points}</Text>
-              {activeTab === 'chuoi' && <MaterialCommunityIcons name="fire" size={22} color="#FF5A00" style={{ marginLeft: 2 }} />}
+              <Text style={[styles.podiumPoints1, { marginBottom: 0 }]}>{processedData[0].points}</Text>
             </View>
-            <Text style={styles.podiumUser}>{currentData[0].username}</Text>
+            <Text style={styles.podiumUser}>{processedData[0].username}</Text>
           </View>
 
           {/* Rank 3 */}
           <View style={[styles.podiumItem, { marginTop: 50 }]}>
             <View style={styles.avatarWrap3}>
-              <Image source={{ uri: currentData[2].avatar }} style={styles.podiumAvatar3} />
+              <Image source={{ uri: processedData[2].avatar }} style={styles.podiumAvatar3} />
               <View style={styles.rankBadge3}>
                 <Text style={styles.rankBadgeText}>3</Text>
               </View>
             </View>
-            <Text style={styles.podiumName}>{currentData[2].name}</Text>
+            <Text style={[styles.podiumName, processedData[2].isMe && { color: '#0EA5E9' }]}>{processedData[2].name} {processedData[2].isMe ? "\n(Bạn)" : ""}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-              <Text style={[styles.podiumPoints3, { marginBottom: 0 }]}>{currentData[2].points}</Text>
-              {activeTab === 'chuoi' && <MaterialCommunityIcons name="fire" size={18} color="#FF5A00" style={{ marginLeft: 2 }} />}
+              <Text style={[styles.podiumPoints3, { marginBottom: 0 }]}>{processedData[2].points}</Text>
             </View>
-            <Text style={styles.podiumUser}>{currentData[2].username}</Text>
+            <Text style={styles.podiumUser}>{processedData[2].username}</Text>
           </View>
         </View>
 
         {/* List rest */}
         <View style={styles.lbListContainer}>
-          {currentData.slice(3).map(user => (
-            <View key={user.id} style={styles.lbListItem}>
+          {top10Data.slice(3).map(user => (
+            <View key={user.id} style={[styles.lbListItem, user.isMe && styles.lbListItemMe]}>
               <View style={styles.lbListLeft}>
+                <Text style={[styles.lbListRank, user.isMe && { color: '#0EA5E9' }]}>{user.rank}</Text>
                 <Image source={{ uri: user.avatar }} style={styles.lbListAvatar} />
                 <View>
-                  <Text style={styles.lbListName}>{user.name}</Text>
+                  <Text style={[styles.lbListName, user.isMe && { color: '#0EA5E9' }]}>{user.name} {user.isMe && "(Bạn)"}</Text>
                   <Text style={styles.lbListUser}>{user.username}</Text>
                 </View>
               </View>
               <View style={styles.lbListRight}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={styles.lbListPoints}>{user.points}</Text>
-                  {activeTab === 'chuoi' && <MaterialCommunityIcons name="fire" size={18} color="#FF5A00" style={{ marginLeft: 2 }} />}
                 </View>
                 <Ionicons
                   name={user.trend === 'up' ? "caret-up" : "caret-down"}
@@ -169,9 +157,35 @@ export default function LeaderboardScreen() {
               </View>
             </View>
           ))}
-          <View style={{ height: 50 }} />
+          <View style={{ height: 120 }} />
         </View>
       </ScrollView>
+
+      {/* Sticky footer for outside Top 10 */}
+      {isOutsideTop10 && myData && (
+        <View style={styles.stickyFooterContainer}>
+          <View style={styles.stickyFooterInner}>
+            <View style={styles.lbListLeft}>
+              <Text style={[styles.lbListRank, { color: '#0EA5E9' }]}>{myData.rank}</Text>
+              <Image source={{ uri: myData.avatar }} style={styles.lbListAvatar} />
+              <View>
+                <Text style={[styles.lbListName, { color: '#0EA5E9' }]}>{myData.name} (Bạn)</Text>
+                <Text style={styles.lbListUser}>{myData.username}</Text>
+              </View>
+            </View>
+            <View style={styles.lbListRight}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.lbListPoints, { color: '#0EA5E9' }]}>{myData.points}</Text>
+              </View>
+              <Ionicons
+                name={myData.trend === 'up' ? "caret-up" : "caret-down"}
+                size={14}
+                color={myData.trend === 'up' ? "#22C55E" : "#EF4444"}
+              />
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -191,14 +205,7 @@ const styles = StyleSheet.create({
 
   scrollContent: { paddingTop: 20 },
 
-  lbTabsRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 40, backgroundColor: '#1E293B', borderRadius: 12, marginHorizontal: 40, padding: 4 },
-  lbTabActive: { flex: 1, alignItems: 'center', paddingVertical: 12, position: 'relative' },
-  lbTabIndicator: { position: 'absolute', bottom: 0, width: 40, height: 3, backgroundColor: '#3B82F6', borderRadius: 2 },
-  lbTabTextActive: { color: '#FFF', fontSize: 14, fontWeight: '700' },
-  lbTab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  lbTabText: { color: '#94A3B8', fontSize: 14, fontWeight: '600' },
-
-  podiumContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', paddingHorizontal: 20, marginBottom: 40, gap: 10 },
+  podiumContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', paddingHorizontal: 20, marginBottom: 40, gap: 10, marginTop: 20 },
   podiumItem: { alignItems: 'center', width: '30%' },
 
   crownIcon: { marginBottom: -12, zIndex: 2 },
@@ -234,10 +241,15 @@ const styles = StyleSheet.create({
     minHeight: 500,
   },
   lbListItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  lbListItemMe: { backgroundColor: 'rgba(14, 165, 233, 0.15)', borderRadius: 12, paddingHorizontal: 12, marginHorizontal: -12, borderBottomWidth: 0 },
   lbListLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  lbListRank: { color: '#94A3B8', fontSize: 16, fontWeight: '800', width: 24, textAlign: 'center' },
   lbListAvatar: { width: 48, height: 48, borderRadius: 24 },
   lbListName: { color: '#F1F5F9', fontSize: 15, fontWeight: '700', marginBottom: 2 },
   lbListUser: { color: '#64748B', fontSize: 12, fontWeight: '500' },
   lbListRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   lbListPoints: { color: '#F1F5F9', fontSize: 16, fontWeight: '800' },
+
+  stickyFooterContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: 30, paddingTop: 10, paddingHorizontal: 20, backgroundColor: 'rgba(15, 23, 42, 0.95)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
+  stickyFooterInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1E293B', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: '#0EA5E9' }
 });

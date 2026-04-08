@@ -14,7 +14,7 @@ export const useExercisesClient = () => {
       setError(null);
       const data = await exerciseApi.getAllClient();
       const userInfoStr = await AsyncStorage.getItem("USER_INFO");
-      let isVip = false;     
+      let isVip = false;
       if (userInfoStr) {
         const user = JSON.parse(userInfoStr);
         isVip = user.is_subscriber === 'active';
@@ -25,7 +25,7 @@ export const useExercisesClient = () => {
         const freeExercises = data.filter((ex: Exercise) => ex.type === 'free');
         setExercises(freeExercises);
       }
-      
+
     } catch (err: any) {
       console.error("Lỗi fetch exercises:", err);
       setError("Không thể tải danh sách bài tập.");
