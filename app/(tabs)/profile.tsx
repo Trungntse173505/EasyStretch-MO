@@ -2,6 +2,7 @@ import authApi from "@/api/authApi";
 import { getWaterSettings } from "@/api/waterApi";
 import { useLogout } from "@/hooks/auth/useLogout";
 import { scheduleWaterReminders } from "@/utils/waterNotificationHelper";
+import { scheduleStationNotifications } from "@/utils/stationNotificationHelper";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
@@ -82,8 +83,10 @@ export default function ProfileScreen() {
           const wSet = res?.data;
           if (wSet && wSet.wake_time && wSet.sleep_time && wSet.reminder_interval_mins) {
              await scheduleWaterReminders(wSet.wake_time, wSet.sleep_time, wSet.reminder_interval_mins);
-             Alert.alert("Đã kích hoạt", "Hệ thống thông báo đã khôi phục hoạt động.");
           }
+          // Khôi phục thêm station notifications giãn cơ
+          await scheduleStationNotifications();
+          Alert.alert("Đã kích hoạt", "Hệ thống thông báo đã khôi phục hoạt động.");
         } catch(e) {
           console.log("Không thể fetch lại setting nước:", e);
         }

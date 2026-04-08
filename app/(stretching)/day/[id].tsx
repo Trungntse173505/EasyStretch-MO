@@ -1,29 +1,88 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { stretchingData } from "../data";
+import { MissionExercise } from "@/api/missionApi";
+import { useMissions } from "@/hooks/mission/useMissions";
+import { formatStationWindow, getStationByOrder, isStationUnlocked } from "../data";
+
+const formatDuration = (seconds: number) => {
+  if (seconds >= 60) return `${Math.floor(seconds / 60)} phút`;
+  return `${seconds} giây`;
+};
 
 export default function DayMissionScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { date } = useLocalSearchParams<{ date: string }>();
   const router = useRouter();
+  const { missions, loading, error, fetchMissions, getCompletedExercises } = useMissions();
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [now, setNow] = useState(new Date());
 
-  const day = stretchingData.find((d) => d.id === id);
-  const [completed, setCompleted] = useState<number[]>([]);
+  // Cập nhật giờ mỗi 60 giây để tự mở khoá mốc khi tới giờ
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-  if (!day) return <SafeAreaView style={styles.container}><Text style={styles.notFoundText}>Không tìm thấy dữ liệu.</Text></SafeAreaView>;
+  useFocusEffect(
+    useCallback(() => {
+      if (!date) return;
+      const loadData = async () => {
+        const data = await fetchMissions(date);
+        if (data.length > 0) {
+          const allExerciseIds = data.flatMap(m =>
+            m.mission_exercises.map(me => me.exercise_id)
+          );
+          const done = await getCompletedExercises(date, allExerciseIds);
+          setCompletedIds(done);
+        }
+      };
+      loadData();
+    }, [date, fetchMissions, getCompletedExercises])
+  );
 
-  const toggleStation = (stationId: number) => {
-    if (completed.includes(stationId)) {
-      setCompleted(completed.filter((c) => c !== stationId));
-    } else {
-      setCompleted([...completed, stationId]);
-    }
+  // Gom tất cả exercises, sắp xếp theo order
+  const allExercises: (MissionExercise & { mission_id: string })[] = missions
+    .flatMap(mission =>
+      mission.mission_exercises.map(me => ({ ...me, mission_id: mission.id }))
+    )
+    .sort((a, b) => a.order - b.order);
+
+  const totalExercises = allExercises.length;
+  const completedCount = allExercises.filter(e => completedIds.includes(e.exercise_id)).length;
+  const totalPoints = completedCount * 10;
+  const progressPercent = totalExercises > 0 ? (completedCount / totalExercises) * 100 : 0;
+
+  const displayDate = date
+    ? new Date(date + 'T00:00:00').toLocaleDateString('vi-VN', {
+        weekday: 'long', day: 'numeric', month: 'numeric'
+      })
+    : '';
+
+  const missionInfo = missions[0];
+
+  const handlePlayExercise = (exercise: MissionExercise & { mission_id: string }) => {
+    if (completedIds.includes(exercise.exercise_id)) return;
+    const stationMeta = getStationByOrder(exercise.order);
+    if (stationMeta && !isStationUnlocked(stationMeta, now)) return; // Chặn nếu ngoài giờ
+    router.push({
+      pathname: '/(stretching)/exercise-play',
+      params: {
+        mission_id: exercise.mission_id,
+        exercise_id: exercise.exercise_id,
+        title: exercise.exercises.title,
+        station_name: stationMeta?.name || `Mốc ${exercise.order}`,
+        station_icon: stationMeta?.icon || '🎯',
+        duration: String(exercise.exercises.duration),
+        img_url: exercise.exercises.img_list?.[0] || '',
+        video_url: exercise.exercises.video_url || '',
+        description: exercise.exercises.description || '',
+        point: String(exercise.point),
+        date,
+      },
+    } as any);
   };
-
-  const isAllCompleted = completed.length === day.stations.length;
-  const points = completed.length * 10 + (isAllCompleted ? 40 : 0);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -32,181 +91,275 @@ export default function DayMissionScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{day.dayName}</Text>
+        <Text style={styles.headerTitle}>Nhiệm Vụ Hôm Nay</Text>
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.themeInfo}>
-          <Text style={styles.themeSubtitle}>Chủ đề hôm nay:</Text>
-          <Text style={styles.themeTitle}>{day.theme}</Text>
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#D4F93D" />
+          <Text style={styles.loadingText}>Đang tải nhiệm vụ...</Text>
         </View>
+      ) : error ? (
+        <View style={styles.centered}>
+          <Ionicons name="warning-outline" size={48} color="#EF4444" />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-        {/* PROGRESS BANNER */}
-        <View style={[styles.progressCard, isAllCompleted && styles.progressCardComplete]}>
-           <View style={styles.progressRow}>
+          {/* DATE & MISSION INFO */}
+          <View style={styles.dateSection}>
+            <Text style={styles.dateLabel}>{displayDate}</Text>
+            {missionInfo && <Text style={styles.missionTitle}>{missionInfo.title}</Text>}
+            {missionInfo?.description ? (
+              <Text style={styles.missionDesc}>{missionInfo.description}</Text>
+            ) : null}
+          </View>
+
+          {/* PROGRESS CARD */}
+          <View style={[styles.progressCard, completedCount === totalExercises && totalExercises > 0 && styles.progressCardDone]}>
+            <View style={styles.progressTop}>
               <View>
-                 <Text style={styles.progressLabel}>TỔNG ĐIỂM NGÀY</Text>
-                 <Text style={styles.pointsText}>{points} / 100 ĐIỂM</Text>
+                <Text style={styles.progressLabel}>ĐIỂM TÍCH LŨY HÔM NAY</Text>
+                <Text style={styles.progressPoints}>{totalPoints} ĐIỂM</Text>
               </View>
-              {isAllCompleted ? (
-                 <View style={styles.perfectBadge}>
-                    <Ionicons name="star" size={16} color="#000" />
-                    <Text style={styles.perfectBadgeText}>HOÀN HẢO</Text>
-                 </View>
-              ) : (
-                 <View style={styles.circleProgressBg}>
-                    <Text style={styles.circleProgressText}>{completed.length}/6</Text>
-                 </View>
-              )}
-           </View>
-           
-           <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(points / 100) * 100}%` }]} />
-           </View>
-        </View>
+              <View style={styles.progressCircle}>
+                <Text style={styles.progressCircleText}>{completedCount}/{totalExercises}</Text>
+                <Text style={styles.progressCircleSub}>Mốc</Text>
+              </View>
+            </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+            </View>
+            {completedCount === totalExercises && totalExercises > 0 && (
+              <View style={styles.completeBadge}>
+                <Text style={styles.completeBadgeText}>🎉 HOÀN THÀNH TẤT CẢ HÔM NAY!</Text>
+              </View>
+            )}
+          </View>
 
-        {/* STATIONS LIST */}
-        <View style={styles.stationsList}>
-          {day.stations.map((station) => {
-            const isDone = completed.includes(station.id);
-            return (
-              <TouchableOpacity
-                key={station.id}
-                style={[styles.stationCard, isDone && styles.stationCardDone]}
-                activeOpacity={0.8}
-                onPress={() => toggleStation(station.id)}
-              >
-                <View style={styles.stationHeader}>
-                  <View style={styles.stationTitleRow}>
-                    <View style={[styles.stationBadge, isDone && {backgroundColor: '#D4F93D'}]}>
-                      <Text style={[styles.stationBadgeText, isDone && {color: '#111'}]}>+{station.reward}Đ</Text>
+          {/* EXERCISE LIST */}
+          {allExercises.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>😴</Text>
+              <Text style={styles.emptyText}>Chưa có nhiệm vụ cho ngày này</Text>
+            </View>
+          ) : (
+            <View style={styles.exerciseList}>
+              {allExercises.map((exercise) => {
+                const isDone = completedIds.includes(exercise.exercise_id);
+                const imgUrl = exercise.exercises.img_list?.[0];
+                const stationMeta = getStationByOrder(exercise.order);
+                const unlocked = stationMeta ? isStationUnlocked(stationMeta, now) : true;
+                const timeWindow = stationMeta ? formatStationWindow(stationMeta) : '';
+                const isLocked = !isDone && !unlocked;
+
+                return (
+                  <TouchableOpacity
+                    key={exercise.id}
+                    style={[
+                      styles.exerciseCard,
+                      isDone && styles.exerciseCardDone,
+                      isLocked && styles.exerciseCardLocked,
+                    ]}
+                    activeOpacity={isLocked || isDone ? 1 : 0.82}
+                    onPress={() => handlePlayExercise(exercise)}
+                  >
+                    {/* Image */}
+                    <View style={[styles.imgWrap, isLocked && styles.imgWrapLocked]}>
+                      {imgUrl ? (
+                        <Image source={{ uri: imgUrl }} style={styles.exerciseImg} />
+                      ) : (
+                        <View style={[styles.exerciseImg, styles.imgPlaceholder]}>
+                          <Ionicons name={isLocked ? 'lock-closed' : 'fitness'} size={28} color={isLocked ? 'rgba(255,255,255,0.2)' : '#D4F93D'} />
+                        </View>
+                      )}
+                      {/* Badge: số mốc / khoá / check */}
+                      <View style={[
+                        styles.orderBadge,
+                        isDone && styles.orderBadgeDone,
+                        isLocked && styles.orderBadgeLocked,
+                      ]}>
+                        {isDone
+                          ? <Ionicons name="checkmark" size={12} color="#111" />
+                          : isLocked
+                            ? <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.4)" />
+                            : <Text style={styles.orderText}>{exercise.order}</Text>
+                        }
+                      </View>
                     </View>
-                    <Text style={styles.stationTitle}>{station.title}</Text>
-                  </View>
-                  
-                  <View style={[styles.checkbox, isDone && styles.checkboxActive]}>
-                    {isDone && <Ionicons name="checkmark" size={16} color="#111" />}
-                  </View>
-                </View>
 
-                <View style={styles.stationContent}>
-                  <View style={styles.activityRow}>
-                    <Ionicons name="time" size={16} color="#A1A1AA" />
-                    <Text style={styles.activityText}>{station.activity}</Text>
-                  </View>
-                  <View style={styles.missionRow}>
-                    <Ionicons name="flash" size={16} color="#D4F93D" />
-                    <Text style={styles.missionText}>{station.mission}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                    {/* Info */}
+                    <View style={styles.exerciseInfo}>
+                      {/* Station name */}
+                      <View style={styles.mocRow}>
+                        <Text style={[styles.mocLabel, isLocked && styles.mocLabelLocked]}>
+                          {stationMeta?.icon} {stationMeta?.name || `Mốc ${exercise.order}`}
+                        </Text>
+                      </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+                      {/* Cửa sổ thời gian */}
+                      <View style={styles.windowRow}>
+                        <Ionicons name="alarm-outline" size={11} color={unlocked ? '#D4F93D' : '#4B5563'} />
+                        <Text style={[styles.windowText, unlocked && styles.windowTextActive]}>
+                          {timeWindow}
+                        </Text>
+                        {unlocked && !isDone && <View style={styles.activeDot} />}
+                      </View>
+
+                      {/* Exercise title từ API */}
+                      <Text
+                        style={[styles.exerciseTitle, (isDone || isLocked) && styles.exerciseTitleDimmed]}
+                        numberOfLines={2}
+                      >
+                        {exercise.exercises.title}
+                      </Text>
+
+                      {/* Meta chips */}
+                      <View style={styles.metaRow}>
+                        <View style={styles.metaChip}>
+                          <Ionicons name="time-outline" size={12} color="#A1A1AA" />
+                          <Text style={styles.metaText}>{formatDuration(exercise.exercises.duration)}</Text>
+                        </View>
+                        <View style={[styles.metaChip, styles.pointChip]}>
+                          <Ionicons name="flash" size={12} color="#D4F93D" />
+                          <Text style={[styles.metaText, { color: '#D4F93D' }]}>+{exercise.point}đ</Text>
+                        </View>
+                      </View>
+
+                      {/* Target muscles */}
+                      {exercise.exercises.target_muscle?.length > 0 && (
+                        <Text style={styles.muscleText}>
+                          🎯 {exercise.exercises.target_muscle.join(' · ')}
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* Action icon */}
+                    <View style={styles.actionIcon}>
+                      {isDone
+                        ? <Ionicons name="checkmark-circle" size={30} color="#D4F93D" />
+                        : isLocked
+                          ? <Ionicons name="lock-closed" size={22} color="rgba(255,255,255,0.15)" />
+                          : <Ionicons name="play-circle-outline" size={30} color="rgba(255,255,255,0.3)" />
+                      }
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-  notFoundText: { color: '#FFF', fontSize: 18, textAlign: 'center', marginTop: 50 },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 15,
   },
-  backBtn: { 
-    width: 44, height: 44, 
-    borderRadius: 22, 
-    backgroundColor: "rgba(255,255,255,0.1)", 
-    justifyContent: "center", alignItems: "center" 
-  },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#FFF", textTransform: 'uppercase' },
-  
-  scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
-  
-  themeInfo: { marginBottom: 24 },
-  themeSubtitle: { color: '#A1A1AA', fontSize: 15, fontWeight: '600', marginBottom: 6 },
-  themeTitle: { fontSize: 32, fontWeight: '900', color: '#FFF', letterSpacing: -1 },
-
-  progressCard: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  progressCardComplete: {
-    borderColor: '#D4F93D',
-    backgroundColor: 'rgba(212, 249, 61, 0.05)',
-  },
-  progressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  progressLabel: { color: '#A1A1AA', fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
-  pointsText: { color: '#FFF', fontSize: 24, fontWeight: '900' },
-  circleProgressBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
-  circleProgressText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
-  perfectBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#D4F93D', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
-  perfectBadgeText: { color: '#111', fontSize: 13, fontWeight: '800' },
-
-  progressBarBg: { height: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#D4F93D', borderRadius: 4 },
-
-  stationsList: { gap: 16 },
-  stationCard: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  stationCardDone: {
-    borderColor: 'rgba(212, 249, 61, 0.3)',
-    backgroundColor: 'rgba(212, 249, 61, 0.02)',
-  },
-  stationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  stationTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stationBadge: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  stationBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-  stationTitle: { color: '#FFF', fontSize: 18, fontWeight: '800' },
-  
-  checkbox: {
-    width: 28, height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+  backBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center', alignItems: 'center',
   },
-  checkboxActive: {
-    backgroundColor: '#D4F93D',
-    borderColor: '#D4F93D',
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFF' },
+
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  loadingText: { color: '#A1A1AA', fontSize: 16, fontWeight: '600' },
+  errorText: { color: '#EF4444', fontSize: 15, fontWeight: '600', textAlign: 'center', paddingHorizontal: 40 },
+
+  scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
+
+  dateSection: { marginBottom: 22 },
+  dateLabel: { fontSize: 13, color: '#64748B', fontWeight: '700', textTransform: 'capitalize', marginBottom: 6 },
+  missionTitle: { fontSize: 26, fontWeight: '900', color: '#FFF', lineHeight: 34, letterSpacing: -0.5, marginBottom: 6 },
+  missionDesc: { fontSize: 14, color: '#A1A1AA', lineHeight: 20, fontWeight: '500' },
+
+  // Progress
+  progressCard: {
+    backgroundColor: '#161616', borderRadius: 24, padding: 22,
+    marginBottom: 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+  },
+  progressCardDone: { borderColor: '#D4F93D', backgroundColor: 'rgba(212,249,61,0.04)' },
+  progressTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  progressLabel: { fontSize: 11, color: '#64748B', fontWeight: '800', letterSpacing: 1, marginBottom: 6 },
+  progressPoints: { fontSize: 28, fontWeight: '900', color: '#FFF' },
+  progressCircle: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: 'rgba(212,249,61,0.1)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: 'rgba(212,249,61,0.25)',
+  },
+  progressCircleText: { color: '#D4F93D', fontSize: 14, fontWeight: '900', lineHeight: 18 },
+  progressCircleSub: { color: '#D4F93D', fontSize: 10, fontWeight: '700' },
+  progressBarBg: { height: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' },
+  progressBarFill: { height: '100%', backgroundColor: '#D4F93D', borderRadius: 3 },
+  completeBadge: {
+    marginTop: 14, backgroundColor: 'rgba(212,249,61,0.1)',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center',
+  },
+  completeBadgeText: { color: '#D4F93D', fontWeight: '900', fontSize: 14 },
+
+  emptyContainer: { alignItems: 'center', paddingVertical: 60, gap: 16 },
+  emptyIcon: { fontSize: 56 },
+  emptyText: { color: '#64748B', fontSize: 17, fontWeight: '600' },
+
+  // Exercise cards
+  exerciseList: { gap: 14 },
+  exerciseCard: {
+    backgroundColor: '#161616', borderRadius: 20, padding: 16,
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+  },
+  exerciseCardDone: { borderColor: 'rgba(212,249,61,0.25)', backgroundColor: 'rgba(212,249,61,0.03)' },
+  exerciseCardLocked: { opacity: 0.55 },
+
+  imgWrap: { position: 'relative', marginRight: 14, flexShrink: 0 },
+  imgWrapLocked: { opacity: 0.5 },
+  exerciseImg: { width: 76, height: 76, borderRadius: 16, backgroundColor: '#2A2A2A' },
+  imgPlaceholder: { justifyContent: 'center', alignItems: 'center' },
+  orderBadge: {
+    position: 'absolute', top: -7, left: -7,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#0A0A0A',
+  },
+  orderBadgeDone: { backgroundColor: '#D4F93D' },
+  orderBadgeLocked: { backgroundColor: '#1E293B' },
+  orderText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
+
+  exerciseInfo: { flex: 1, gap: 4 },
+
+  mocRow: { flexDirection: 'row', alignItems: 'center' },
+  mocLabel: { fontSize: 12, color: '#D4F93D', fontWeight: '800', letterSpacing: 0.5 },
+  mocLabelLocked: { color: '#4B5563' },
+
+  windowRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
+  windowText: { fontSize: 11, color: '#4B5563', fontWeight: '700' },
+  windowTextActive: { color: '#D4F93D' },
+  activeDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: '#22C55E', marginLeft: 2,
   },
 
-  stationContent: { gap: 12 },
-  activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  activityText: { color: '#A1A1AA', fontSize: 15, flex: 1, lineHeight: 22 },
-  
-  missionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  missionText: { color: '#E4E4E7', fontSize: 15, flex: 1, lineHeight: 22, fontWeight: '600' },
+  exerciseTitle: { fontSize: 15, fontWeight: '800', color: '#FFF', lineHeight: 21 },
+  exerciseTitleDimmed: { color: '#4B5563' },
+
+  metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 2 },
+  metaChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+  },
+  pointChip: { backgroundColor: 'rgba(212,249,61,0.08)' },
+  metaText: { fontSize: 11, color: '#A1A1AA', fontWeight: '700' },
+  muscleText: { fontSize: 11, color: '#64748B', fontWeight: '600', marginTop: 2 },
+
+  actionIcon: { paddingLeft: 10, flexShrink: 0 },
 });
