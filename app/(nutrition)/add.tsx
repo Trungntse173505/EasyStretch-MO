@@ -7,7 +7,8 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Food } from '../../api/nutritionApi';
+import { createFood, Food } from '../../api/nutritionApi';
+import { LOCAL_FOODS } from './localFoods';
 
 type ModalStep = 'SEARCH' | 'CREATE' | 'QUANTITY';
 
@@ -22,8 +23,12 @@ export default function AddMealScreen() {
   const [modalStep, setModalStep] = useState<ModalStep>('SEARCH');
   const [searchQuery, setSearchQuery] = useState('');
   const [tempFood, setTempFood] = useState<PendingFood | null>(null);
-  const [newFood, setNewFood] = useState({ name: '', calories: '', protein: '', fat: '', carbs: '' });
+  const [newFood, setNewFood] = useState({ name: '', calories: '', protein: '', fat: '', carbs: '', categories: [] as string[] });
   const [quantityInput, setQuantityInput] = useState('1');
+  const [showFilter, setShowFilter] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('Tất cả');
+
+  const categories = ['Tất cả', 'Tinh bột', 'Thịt', 'Hải sản', 'Trứng', 'Sữa', 'Rau Xanh & Salad', 'Trái cây', 'Fast Food & Ăn vặt', 'Đồ Uống'];
 
   useEffect(() => {
     if (isModalVisible && modalStep === 'SEARCH') {
@@ -63,33 +68,75 @@ export default function AddMealScreen() {
   const closeModal = () => {
     setModalVisible(false);
     setTempFood(null);
-    setNewFood({ name: '', calories: '', protein: '', fat: '', carbs: '' });
+    setNewFood({ name: '', calories: '', protein: '', fat: '', carbs: '', categories: [] as string[] });
     setQuantityInput('1');
   };
 
   const handleSelectExistingFood = (food: Food) => {
-    setTempFood({ ...food, quantity: 1, isNew: false });
+    // Kiểm tra xem món ăn này có phải là món được code cứng (hardcode) không
+    const isLocalFakeId = food.id?.startsWith('local-');
+
+    if (isLocalFakeId) {
+      // Bỏ `categories` đi để backend API không bị crash 500 do dư data
+      const { categories, id, ...safeFood } = food as any;
+
+      if ((food as any)._dbLinkedId) {
+        // Nếu món Local này ĐÃ TỪNG được tạo trên DB (có ID thật), không cần isNew nữa
+        setTempFood({ ...safeFood, id: (food as any)._dbLinkedId, categories: categories || [], quantity: 1, isNew: false });
+      } else {
+        // Ép nó thành Món MỚI để tạo trên back-end
+        setTempFood({ ...safeFood, categories: categories || [], quantity: 1, isNew: true });
+      }
+    } else {
+      // Món đã có trên backend thuần túy
+      setTempFood({ ...food, quantity: 1, isNew: false });
+    }
+
     setQuantityInput('1');
     setModalStep('QUANTITY');
   };
 
-  const handleCreateNewFoodSubmit = () => {
+  const [isCreatingFood, setIsCreatingFood] = useState(false);
+
+  const handleCreateNewFoodSubmit = async () => {
     if (!newFood.name || !newFood.calories) {
       Alert.alert("Lỗi", "Vui lòng nhập ít nhất tên và lượng Calories.");
       return;
     }
-    const createdTempFood: PendingFood = {
-      name: newFood.name,
-      calories: Number(newFood.calories),
-      protein: Number(newFood.protein || 0),
-      fat: Number(newFood.fat || 0),
-      carbs: Number(newFood.carbs || 0),
-      quantity: 1,
-      isNew: true
-    };
-    setTempFood(createdTempFood);
-    setQuantityInput('1');
-    setModalStep('QUANTITY');
+
+    if (!user?.id) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng.");
+      return;
+    }
+
+    try {
+      setIsCreatingFood(true);
+      const foodData: Food = {
+        user_id: user.id,
+        name: newFood.name,
+        calories: Number(newFood.calories),
+        protein: Number(newFood.protein || 0),
+        fat: Number(newFood.fat || 0),
+        carbs: Number(newFood.carbs || 0),
+        categories: newFood.categories,
+      };
+
+      const response = await createFood(foodData);
+      const createdFood = response?.data || response;
+
+      if (createdFood && createdFood.id) {
+        setTempFood({ ...createdFood, quantity: 1, isNew: false });
+        setQuantityInput('1');
+        setModalStep('QUANTITY');
+      } else {
+        throw new Error("Lưu món ăn thất bại");
+      }
+    } catch (error) {
+      console.error("Lỗi tạo món ăn:", error);
+      Alert.alert("Lỗi", "Không thể lưu món ăn mới. Vui lòng thử lại.");
+    } finally {
+      setIsCreatingFood(false);
+    }
   };
 
   const handleConfirmAddFood = () => {
@@ -100,7 +147,30 @@ export default function AddMealScreen() {
     }
   };
 
-  const filteredFoods = dbFoods.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Khử trùng lặp giữa Local & Database: Nếu Database đã có món Local đó rồi, gán ID thật vào món Local để chống tạo rác DB
+  const localNamesSet = new Set(LOCAL_FOODS.map(f => f.name.toLowerCase()));
+
+  const uniqueDbFoods = dbFoods.filter(f => !localNamesSet.has(f.name.toLowerCase()));
+
+  const hydratedLocalFoods = LOCAL_FOODS.map(local => {
+    const matchedDb = dbFoods.find(df => df.name.toLowerCase() === local.name.toLowerCase());
+    return matchedDb ? { ...local, _dbLinkedId: matchedDb.id } : local;
+  });
+
+  // Gộp cả 2 cục lại với nhau. LOCAL_FOODS đẩy lên đầu.
+  const allFoods = [...hydratedLocalFoods, ...uniqueDbFoods];
+
+  // Lọc theo search và theo filter
+  const filteredFoods = allFoods.filter(f => {
+    const stringName = f.name.toLowerCase();
+    const matchesSearch = stringName.includes(searchQuery.toLowerCase());
+
+    // Check categories: giờ dùng categories thống nhất cho cả Local và DB
+    const itemCategories: string[] = Array.isArray(f.categories) ? f.categories : ['Khác'];
+    const matchesFilter = selectedFilter === 'Tất cả' || itemCategories.includes(selectedFilter);
+
+    return matchesSearch && matchesFilter;
+  });
 
   const getMealTypeLabel = (type: string) => {
     if (type === 'BREAKFAST') return 'Sáng';
@@ -209,13 +279,35 @@ export default function AddMealScreen() {
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
+
+                <TouchableOpacity onPress={() => setShowFilter(!showFilter)} style={styles.filterBtn}>
+                  <Ionicons name="options-outline" size={24} color={showFilter ? "#111" : "#9CA3AF"} />
+                </TouchableOpacity>
               </View>
+
+              {showFilter && (
+                <View style={styles.filterContainer}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {categories.map((cat, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={[styles.filterChip, selectedFilter === cat && styles.activeFilterChip]}
+                        onPress={() => setSelectedFilter(cat)}
+                      >
+                        <Text style={[styles.filterChipText, selectedFilter === cat && styles.activeFilterChipText]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
 
               <TouchableOpacity style={styles.createNewBtn} onPress={() => setModalStep('CREATE')} activeOpacity={0.8}>
                 <View style={styles.createIconWrap}>
                   <Ionicons name="add" size={20} color="#111" />
                 </View>
-                <Text style={styles.createNewBtnText}>Không tìm thấy? Tạo món mới</Text>
+                <Text style={styles.createNewBtnText}>Tạo món mới</Text>
               </TouchableOpacity>
 
               {loadingFoods ? (
@@ -233,7 +325,12 @@ export default function AddMealScreen() {
                       </View>
                       <View style={{ flex: 1, paddingLeft: 12 }}>
                         <Text style={styles.searchResultName}>{item.name}</Text>
-                        <Text style={styles.searchResultCal}>{item.calories} kcal</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                          {item.categories && Array.isArray(item.categories) && item.categories.map((t: string, idx: number) => (
+                            <Text key={idx} style={styles.searchResultType}>{t}</Text>
+                          ))}
+                          <Text style={styles.searchResultCal}>{item.calories} kcal</Text>
+                        </View>
                       </View>
                       <Ionicons name="add-circle" size={28} color="#E2E8F0" />
                     </TouchableOpacity>
@@ -269,10 +366,46 @@ export default function AddMealScreen() {
                       <TextInput style={styles.inputFieldSm} keyboardType="numeric" value={newFood.fat} onChangeText={(t) => setNewFood({ ...newFood, fat: t })} />
                     </View>
                   </View>
+
+                  <Text style={styles.inputLabel}>Danh mục món ăn</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                    {categories.filter(c => c !== 'Tất cả').map((cat, i) => {
+                      const isSelected = newFood.categories.includes(cat);
+                      return (
+                        <TouchableOpacity
+                          key={i}
+                          onPress={() => {
+                            const next = isSelected
+                              ? newFood.categories.filter(c => c !== cat)
+                              : [...newFood.categories, cat];
+                            setNewFood({ ...newFood, categories: next });
+                          }}
+                          style={[
+                            styles.filterChip,
+                            isSelected && styles.activeFilterChip,
+                            { marginBottom: 8 }
+                          ]}
+                        >
+                          <Text style={[styles.filterChipText, isSelected && styles.activeFilterChipText]}>
+                            {cat}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
 
-                <TouchableOpacity style={styles.saveModalBtn} onPress={handleCreateNewFoodSubmit} activeOpacity={0.85}>
-                  <Text style={styles.saveModalBtnText}>Tiếp tục</Text>
+                <TouchableOpacity
+                  style={[styles.saveModalBtn, isCreatingFood && { opacity: 0.7 }]}
+                  onPress={handleCreateNewFoodSubmit}
+                  disabled={isCreatingFood}
+                  activeOpacity={0.85}
+                >
+                  {isCreatingFood ? (
+                    <ActivityIndicator color="#111" />
+                  ) : (
+                    <Text style={styles.saveModalBtnText}>Tiếp tục</Text>
+                  )}
                 </TouchableOpacity>
                 <View style={{ height: 40 }} />
               </ScrollView>
@@ -367,7 +500,15 @@ const styles = StyleSheet.create({
   searchFoodIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
   searchResultName: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 4 },
   searchResultCal: { color: '#64748B', fontWeight: '600', fontSize: 13 },
+  searchResultType: { color: '#0EA5E9', fontWeight: '800', fontSize: 11, backgroundColor: '#E0F2FE', paddingHorizontal: 6, borderRadius: 6, alignSelf: 'flex-start', overflow: 'hidden' },
   emptySearchText: { textAlign: 'center', color: '#94A3B8', marginTop: 30, fontWeight: '600' },
+
+  filterBtn: { padding: 12, marginRight: 4 },
+  filterContainer: { marginBottom: 20 },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#F1F5F9', borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  activeFilterChip: { backgroundColor: '#111', borderColor: '#111' },
+  filterChipText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
+  activeFilterChipText: { color: '#FFF' },
 
   formCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: '#F1F5F9' },
   inputLabel: { fontSize: 14, fontWeight: '700', marginBottom: 8, color: '#475569', marginTop: 12 },

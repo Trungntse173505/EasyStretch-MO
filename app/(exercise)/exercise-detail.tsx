@@ -12,8 +12,9 @@ export default function ExerciseDetailScreen() {
   const { exercise, loading, error } = useExerciseDetail(id as string);
   const [playing, setPlaying] = useState(false);
 
-  const getYouTubeID = (url: string) => {
-    const match = url?.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+  const getYouTubeID = (url: any) => {
+    if (!url || typeof url !== 'string') return null;
+    const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
@@ -71,7 +72,7 @@ export default function ExerciseDetailScreen() {
 
            <Text style={styles.subTitle}>Nhóm cơ tác động</Text>
            <View style={styles.muscleWrap}>
-             {exercise.target_muscle.map((m: string, i: number) => (
+             {exercise.target_muscle?.map((m: string, i: number) => (
                 <View key={i} style={styles.muscleTag}><Text style={styles.muscleText}>{m}</Text></View>
              ))}
            </View>

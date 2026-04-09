@@ -8,33 +8,41 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CourseDetailScreen() {
   const router = useRouter();
-  const { id, title, img_url } = useLocalSearchParams();
-  const { hasBought, loading, checkOwnership } = useCourseOwnership();
+  const { id, title, img_url, isBought } = useLocalSearchParams();
+  const { hasBought: apiHasBought, loading, checkOwnership } = useCourseOwnership();
+
+  // Logic gộp: Hoặc là API check ra, hoặc là đi từ Tầng 1 (isBought=true)
+  const hasBought = apiHasBought || isBought === 'true';
 
   useEffect(() => {
-    if (id) checkOwnership(id as string);
-    
+    // Nếu đã biết mười mươi là mua rồi (từ Tầng 1) thì không cần check API nữa cho mất công
+    if (id && isBought !== 'true') {
+      checkOwnership(id as string);
+    }
+
     // Tự động kiểm tra lại khi user từ trình duyệt (web) quay trở lại app
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active' && id) checkOwnership(id as string);
+      if (nextAppState === 'active' && id && isBought !== 'true') {
+        checkOwnership(id as string);
+      }
     });
     return () => subscription.remove();
-  }, [id, checkOwnership]);
+  }, [id, checkOwnership, isBought]);
 
   const handleShowGuidance = async () => {
-    const websiteUrl = "myfitness-web.com";
+    const websiteUrl = "https://www.easystretch.click";
 
     Alert.alert(
-      "Khóa học chưa kích hoạt", 
+      "Khóa học chưa kích hoạt",
       `Để bắt đầu tập luyện, bạn cần kích hoạt khóa học này.\n\nVui lòng truy cập website:\n${websiteUrl}\nđể quản lý tài khoản và đăng ký.`,
       [
         { text: "Đóng", style: "cancel" },
-        { 
-          text: "Sao chép Website", 
+        {
+          text: "Sao chép Website",
           onPress: async () => {
             await Clipboard.setStringAsync(websiteUrl);
             Alert.alert("Thành công", "Đã sao chép địa chỉ website. Bạn hãy mở trình duyệt (Safari/Chrome) và dán vào nhé!");
-          } 
+          }
         }
       ]
     );

@@ -65,9 +65,14 @@ export default function WaterHomeScreen() {
           <Ionicons name="arrow-back-outline" size={28} color="#111" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Lượng nước</Text>
-        <TouchableOpacity onPress={() => router.push('/(water)/settings')}>
-          <Ionicons name="settings-outline" size={26} color="#111" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 16 }}>
+          <TouchableOpacity onPress={() => router.push('/(water)/statistics')}>
+            <Ionicons name="bar-chart-outline" size={26} color="#111" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(water)/settings')}>
+            <Ionicons name="settings-outline" size={26} color="#111" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* BODY */}
@@ -135,7 +140,7 @@ export default function WaterHomeScreen() {
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
                 {logs.map((item: WaterLogEntry, index: number) => {
-                  const time = new Date(item.logged_at);
+                  const time = new Date(item.consumed_at || (item as any).logged_at);
                   const hhmm = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
                   return (
                     <View key={item.id || index} style={styles.logItem}>

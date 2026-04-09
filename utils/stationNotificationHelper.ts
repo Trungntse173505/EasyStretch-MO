@@ -1,6 +1,6 @@
 // utils/stationNotificationHelper.ts
-import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { STATION_META } from '../app/(stretching)/data';
 
 const SCHEDULED_FLAG_KEY = 'STATION_NOTIF_SCHEDULED_V2';
@@ -52,7 +52,7 @@ export const scheduleStationNotifications = async (): Promise<void> => {
     const notifTimes = await getUserStationNotifTimes();
 
     for (const station of STATION_META) {
-      await Notifications.cancelScheduledNotificationAsync(getNotifId(station.order)).catch(() => {});
+      await Notifications.cancelScheduledNotificationAsync(getNotifId(station.order)).catch(() => { });
 
       const timeSetup = notifTimes.find(t => t.order === station.order);
       const hour = timeSetup ? timeSetup.hour : station.notifHour;
@@ -84,7 +84,7 @@ export const scheduleStationNotifications = async (): Promise<void> => {
 export const cancelStationNotifications = async (): Promise<void> => {
   try {
     for (const station of STATION_META) {
-      await Notifications.cancelScheduledNotificationAsync(getNotifId(station.order)).catch(() => {});
+      await Notifications.cancelScheduledNotificationAsync(getNotifId(station.order)).catch(() => { });
     }
     await AsyncStorage.removeItem(SCHEDULED_FLAG_KEY);
     console.log('[Station Notif] ❌ Đã huỷ tất cả thông báo mốc giãn cơ.');

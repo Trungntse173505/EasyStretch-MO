@@ -12,8 +12,8 @@ const formatDuration = (s: number) => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
-const getYouTubeID = (url: string) => {
-  if (!url) return null;
+const getYouTubeID = (url: any) => {
+  if (!url || typeof url !== 'string') return null;
   const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
   return (match && match[2].length === 11) ? match[2] : null;
 };

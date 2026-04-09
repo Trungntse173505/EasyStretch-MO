@@ -5,7 +5,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacit
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MissionExercise } from "@/api/missionApi";
 import { useMissions } from "@/hooks/mission/useMissions";
-import { formatStationWindow, getStationByOrder, isStationUnlocked } from "../data";
+import { formatStationWindow, getStationByOrder, isStationUnlocked, isStationMissed, isStationFuture } from "../data";
 
 const formatDuration = (seconds: number) => {
   if (seconds >= 60) return `${Math.floor(seconds / 60)} phút`;
@@ -151,9 +151,35 @@ export default function DayMissionScreen() {
                 const isDone = completedIds.includes(exercise.exercise_id);
                 const imgUrl = exercise.exercises.img_list?.[0];
                 const stationMeta = getStationByOrder(exercise.order);
-                const unlocked = stationMeta ? isStationUnlocked(stationMeta, now) : true;
                 const timeWindow = stationMeta ? formatStationWindow(stationMeta) : '';
-                const isLocked = !isDone && !unlocked;
+
+                // Logic ngày tháng
+                const todayStr = new Date().toISOString().split('T')[0];
+                const isPastDay = date < todayStr;
+                const isFutureDay = date > todayStr;
+                const isToday = date === todayStr;
+
+                let isMissed = false;
+                let isFuture = false;
+                let unlocked = true;
+
+                if (stationMeta) {
+                  if (isPastDay) {
+                    isMissed = !isDone;
+                    unlocked = false;
+                  } else if (isFutureDay) {
+                    isFuture = true;
+                    unlocked = false;
+                  } else {
+                    // Hôm nay
+                    isMissed = !isDone && isStationMissed(stationMeta, now);
+                    isFuture = !isDone && isStationFuture(stationMeta, now);
+                    unlocked = isStationUnlocked(stationMeta, now);
+                  }
+                }
+
+                // Nếu đã xong thì không quan tâm miss/future nữa
+                const isLocked = !isDone && !unlocked && !isMissed;
 
                 return (
                   <TouchableOpacity
@@ -161,9 +187,10 @@ export default function DayMissionScreen() {
                     style={[
                       styles.exerciseCard,
                       isDone && styles.exerciseCardDone,
-                      isLocked && styles.exerciseCardLocked,
+                      (isLocked || isFuture) && styles.exerciseCardLocked,
+                      isMissed && styles.exerciseCardMissed,
                     ]}
-                    activeOpacity={isLocked || isDone ? 1 : 0.82}
+                    activeOpacity={isLocked || isDone || isMissed || isFuture ? 1 : 0.82}
                     onPress={() => handlePlayExercise(exercise)}
                   >
                     {/* Image */}
@@ -179,24 +206,31 @@ export default function DayMissionScreen() {
                       <View style={[
                         styles.orderBadge,
                         isDone && styles.orderBadgeDone,
-                        isLocked && styles.orderBadgeLocked,
+                        (isLocked || isFuture) && styles.orderBadgeLocked,
                       ]}>
                         {isDone
                           ? <Ionicons name="checkmark" size={12} color="#111" />
-                          : isLocked
-                            ? <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.4)" />
-                            : <Text style={styles.orderText}>{exercise.order}</Text>
+                          : isMissed
+                            ? <Ionicons name="close" size={14} color="#FFF" />
+                            : (isLocked || isFuture)
+                              ? <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.4)" />
+                              : <Text style={styles.orderText}>{exercise.order}</Text>
                         }
                       </View>
                     </View>
 
                     {/* Info */}
                     <View style={styles.exerciseInfo}>
-                      {/* Station name */}
+                      {/* Station name & Status Badge */}
                       <View style={styles.mocRow}>
-                        <Text style={[styles.mocLabel, isLocked && styles.mocLabelLocked]}>
+                        <Text style={[styles.mocLabel, (isLocked || isFuture) && styles.mocLabelLocked, isMissed && styles.mocLabelMissed]}>
                           {stationMeta?.icon} {stationMeta?.name || `Mốc ${exercise.order}`}
                         </Text>
+                        {isMissed && (
+                          <View style={styles.missedBadge}>
+                            <Text style={styles.missedBadgeText}>Bỏ lỡ</Text>
+                          </View>
+                        )}
                       </View>
 
                       {/* Cửa sổ thời gian */}
@@ -210,7 +244,7 @@ export default function DayMissionScreen() {
 
                       {/* Exercise title từ API */}
                       <Text
-                        style={[styles.exerciseTitle, (isDone || isLocked) && styles.exerciseTitleDimmed]}
+                        style={[styles.exerciseTitle, (isDone || isLocked || isFuture || isMissed) && styles.exerciseTitleDimmed]}
                         numberOfLines={2}
                       >
                         {exercise.exercises.title}
@@ -240,9 +274,11 @@ export default function DayMissionScreen() {
                     <View style={styles.actionIcon}>
                       {isDone
                         ? <Ionicons name="checkmark-circle" size={30} color="#D4F93D" />
-                        : isLocked
-                          ? <Ionicons name="lock-closed" size={22} color="rgba(255,255,255,0.15)" />
-                          : <Ionicons name="play-circle-outline" size={30} color="rgba(255,255,255,0.3)" />
+                        : isMissed
+                          ? <Ionicons name="alert-circle" size={30} color="#EF4444" />
+                          : (isLocked || isFuture)
+                            ? <Ionicons name="lock-closed" size={22} color="rgba(255,255,255,0.15)" />
+                            : <Ionicons name="play-circle-outline" size={30} color="rgba(255,255,255,0.3)" />
                       }
                     </View>
                   </TouchableOpacity>
@@ -320,6 +356,7 @@ const styles = StyleSheet.create({
   },
   exerciseCardDone: { borderColor: 'rgba(212,249,61,0.25)', backgroundColor: 'rgba(212,249,61,0.03)' },
   exerciseCardLocked: { opacity: 0.55 },
+  exerciseCardMissed: { borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.02)' },
 
   imgWrap: { position: 'relative', marginRight: 14, flexShrink: 0 },
   imgWrapLocked: { opacity: 0.5 },
@@ -337,9 +374,13 @@ const styles = StyleSheet.create({
 
   exerciseInfo: { flex: 1, gap: 4 },
 
-  mocRow: { flexDirection: 'row', alignItems: 'center' },
+  mocRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   mocLabel: { fontSize: 12, color: '#D4F93D', fontWeight: '800', letterSpacing: 0.5 },
   mocLabelLocked: { color: '#4B5563' },
+  mocLabelMissed: { color: '#EF4444' },
+
+  missedBadge: { backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  missedBadgeText: { color: '#EF4444', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
 
   windowRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
   windowText: { fontSize: 11, color: '#4B5563', fontWeight: '700' },

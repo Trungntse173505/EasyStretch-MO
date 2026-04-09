@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 export interface WaterLogEntry {
   id: string;
   amount_ml: number;
-  logged_at: string; // ISO string
+  consumed_at: string; // ISO string (trùng khớp với API backend)
 }
 
 export const useWaterLogByDay = () => {

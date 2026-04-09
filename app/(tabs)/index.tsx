@@ -8,7 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { courses, loading: loadingCourses, refetch: refetchCourses } = useCourses();
+  const { courses, boughtCourses, loading: loadingCourses, refetch: refetchCourses, error } = useCourses();
   const { exercises, loading: loadingEx, refetch: refetchEx } = useExercisesClient();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -50,56 +50,114 @@ export default function HomeScreen() {
               <Text style={styles.appName}>EasyStretch</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.iconBtn} activeOpacity={0.8}>
-            <Ionicons name="notifications-outline" size={24} color="#111" />
-            <View style={styles.badge} />
-          </TouchableOpacity>
         </View>
 
-        {/* SECTION 1: KHÓA TẬP LUYỆN */}
-        <SectionHeader title="Khóa Tập Phục Hồi" />
-        {loadingCourses && !refreshing ? (
-          <ActivityIndicator size="small" color="#111" style={{ marginVertical: 40 }} />
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll} contentContainerStyle={{ paddingRight: 20 }}>
-            {courses.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.courseCard}
-                activeOpacity={0.9}
-                onPress={() => router.push({ pathname: "/(course)/course-detail", params: { id: item.id, title: item.title, price: item.price, img_url: item.img_url } })}
-              >
-                <ImageBackground source={{ uri: item.img_url }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
-                  <View style={styles.overlay} />
+        {/* SECTION 1: KHÓA TẬP CỦA BẠN */}
+        {boughtCourses?.length > 0 ? (
+          <View style={{ marginBottom: 35 }}>
+            <SectionHeader 
+              title="Khóa Tập Của Bạn" 
+              onSeeAll={() => router.push({ 
+                pathname: '/(course)/course-list', 
+                params: { title: 'Khóa Tập Của Bạn', type: 'bought' } 
+              })}
+            />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll} contentContainerStyle={{ paddingRight: 20 }}>
+              {boughtCourses.map((item) => (
+                <TouchableOpacity
+                  key={`bought-${item.id}`}
+                  style={styles.courseCard}
+                  activeOpacity={0.9}
+                  onPress={() => router.push({ 
+                    pathname: "/(course)/course-detail", 
+                    params: { 
+                      id: item.id, 
+                      title: item.title, 
+                      price: item.price, 
+                      img_url: item.img_url,
+                      isBought: 'true'
+                    } 
+                  })}
+                >
+                  <ImageBackground source={{ uri: item.img_url }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
+                    <View style={styles.overlay} />
 
-                  <View style={styles.courseTop}>
-                    <View style={styles.levelBadge}>
-                      <Ionicons name="flash" size={14} color="#111" />
-                      <Text style={styles.levelText}>{item.level}</Text>
+                    <View style={styles.courseTop}>
+                      <View style={styles.levelBadge}>
+                        <Ionicons name="flash" size={14} color="#111" />
+                        <Text style={styles.levelText}>{item.level}</Text>
+                      </View>
+                      <View style={styles.playBtn}><Ionicons name="play" size={16} color="#111" style={{ marginLeft: 2 }} /></View>
                     </View>
-                    <View style={styles.playBtn}><Ionicons name="play" size={16} color="#111" style={{ marginLeft: 2 }} /></View>
-                  </View>
 
-                  <View style={styles.courseBottom}>
-                    <Text style={styles.courseTitle} numberOfLines={2}>{item.title}</Text>
-                    <View style={styles.priceTag}>
-                      <Text style={styles.priceText}>{item.price > 0 ? `${item.price.toLocaleString('vi-VN')} đ` : 'Miễn phí'}</Text>
+                    <View style={styles.courseBottom}>
+                      <Text style={styles.courseTitle} numberOfLines={2}>{item.title}</Text>
+                      <View style={styles.priceTag}>
+                        <Text style={styles.priceText}>Vào học ngay</Text>
+                      </View>
                     </View>
-                  </View>
-                </ImageBackground>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
+                  </ImageBackground>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {/* SECTION 2: KHÁM PHÁ KHÓA TẬP */}
+        <View style={{ marginBottom: 35 }}>
+          <SectionHeader 
+            title="Khám Phá Khóa Tập" 
+            onSeeAll={() => router.push({ 
+              pathname: '/(course)/course-list', 
+              params: { title: 'Khám Phá Khóa Tập', type: 'explore' } 
+            })}
+          />
+          {loadingCourses && !refreshing ? (
+            <ActivityIndicator size="small" color="#111" style={{ marginVertical: 40 }} />
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll} contentContainerStyle={{ paddingRight: 20 }}>
+              {courses.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.courseCard}
+                  activeOpacity={0.9}
+                  onPress={() => router.push({ pathname: "/(course)/course-detail", params: { id: item.id, title: item.title, price: item.price, img_url: item.img_url } })}
+                >
+                  <ImageBackground source={{ uri: item.img_url }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
+                    <View style={styles.overlay} />
+
+                    <View style={styles.courseTop}>
+                      <View style={styles.levelBadge}>
+                        <Ionicons name="flash" size={14} color="#111" />
+                        <Text style={styles.levelText}>{item.level}</Text>
+                      </View>
+                      <View style={styles.playBtn}><Ionicons name="play" size={16} color="#111" style={{ marginLeft: 2 }} /></View>
+                    </View>
+
+                    <View style={styles.courseBottom}>
+                      <Text style={styles.courseTitle} numberOfLines={2}>{item.title}</Text>
+                      <View style={styles.priceTag}>
+                        <Text style={styles.priceText}>{item.price > 0 ? `${item.price.toLocaleString('vi-VN')} đ` : 'Miễn phí'}</Text>
+                      </View>
+                    </View>
+                  </ImageBackground>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </View>
 
         {/* SECTION 2: BÀI TẬP GỢI Ý */}
         <View style={{ marginTop: 35 }}>
-          <SectionHeader title="Gợi Ý Cho Bạn" />
+          <SectionHeader 
+            title="Gợi Ý Cho Bạn" 
+            onSeeAll={() => router.push('/(exercise)/exercise-list')}
+          />
           <View style={styles.verticalList}>
             {loadingEx && !refreshing ? (
               <ActivityIndicator size="small" color="#111" style={{ marginTop: 20 }} />
             ) : (
-              exercises.map((item) => (
+              exercises.slice(0, 3).map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.exCard}
@@ -119,7 +177,7 @@ export default function HomeScreen() {
                     </View>
 
                     <View style={styles.tagsContainer}>
-                      {item.target_muscle.map((m, i) => (
+                      {item.target_muscle?.map((m: string, i: number) => (
                         <View key={i} style={styles.tag}><Text style={styles.tagText}>{m}</Text></View>
                       ))}
                     </View>
@@ -153,8 +211,8 @@ const styles = StyleSheet.create({
   seeAll: { fontSize: 14, fontWeight: "800", color: "#8B5CF6", marginBottom: 2 },
 
   horizontalScroll: { overflow: "visible" },
-  courseCard: { width: 280, height: 200, marginRight: 20, borderRadius: 28, shadowColor: "#111", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 15, elevation: 8, marginBottom: 10 },
-  courseBg: { flex: 1, justifyContent: "space-between", padding: 20 },
+  courseCard: { width: 260, height: 160, marginRight: 20, borderRadius: 24, shadowColor: "#111", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 8, marginBottom: 10 },
+  courseBg: { flex: 1, justifyContent: "space-between", padding: 16 },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 28 },
 
   courseTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", zIndex: 1 },
@@ -163,7 +221,7 @@ const styles = StyleSheet.create({
   playBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.95)", justifyContent: "center", alignItems: "center" },
 
   courseBottom: { zIndex: 1 },
-  courseTitle: { color: "#FFF", fontSize: 22, fontWeight: "900", marginBottom: 12, lineHeight: 30 },
+  courseTitle: { color: "#FFF", fontSize: 18, fontWeight: "900", marginBottom: 10, lineHeight: 24 },
   priceTag: { alignSelf: "flex-start", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
   priceText: { color: "#D4F93D", fontSize: 14, fontWeight: "800" },
 

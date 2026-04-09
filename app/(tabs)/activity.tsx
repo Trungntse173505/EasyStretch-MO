@@ -1,5 +1,6 @@
 import { useUser } from '@/hooks/auth/useUser';
 import { useWaterProgress } from '@/hooks/water/useWaterProgress';
+import { useMissions } from '@/hooks/mission/useMissions';
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -11,25 +12,60 @@ export default function ActivityScreen() {
 
   const { user } = useUser();
   const { progress, fetchProgress } = useWaterProgress();
+  const { fetchMissions, getCompletedExercises } = useMissions();
 
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const [workoutPercent, setWorkoutPercent] = useState(0);
+  const [workoutMinutes, setWorkoutMinutes] = useState(0);
+
+  const loadMissionsData = useCallback(async (userId: string, dateStr: string) => {
+    const dayMissions = await fetchMissions(dateStr);
+    
+    let totalExercises: any[] = [];
+    dayMissions.forEach(m => {
+      totalExercises = totalExercises.concat(m.mission_exercises || []);
+    });
+    
+    if (totalExercises.length === 0) {
+      setWorkoutPercent(0);
+      setWorkoutMinutes(0);
+      return;
+    }
+    
+    const allExIds = totalExercises.map(me => me.exercise_id);
+    const completedIds = await getCompletedExercises(dateStr, allExIds);
+    
+    const percent = Math.round((completedIds.length / totalExercises.length) * 100);
+    setWorkoutPercent(percent);
+    
+    let totalSeconds = 0;
+    totalExercises.forEach(me => {
+      if (completedIds.includes(me.exercise_id)) {
+        totalSeconds += me.exercises?.duration || 0;
+      }
+    });
+
+    setWorkoutMinutes(Math.floor(totalSeconds / 60));
+  }, [fetchMissions, getCompletedExercises]);
 
   useFocusEffect(
     useCallback(() => {
       if (user?.id) {
         fetchProgress(user.id, selectedDate);
+        loadMissionsData(user.id, selectedDate);
       }
-    }, [user?.id, fetchProgress, selectedDate])
+    }, [user?.id, fetchProgress, selectedDate, loadMissionsData])
   );
 
   const handleSelectDate = useCallback((dateStr: string) => {
     setSelectedDate(dateStr);
     if (user?.id) {
       fetchProgress(user.id, dateStr);
+      loadMissionsData(user.id, dateStr);
     }
-  }, [user?.id, fetchProgress]);
+  }, [user?.id, fetchProgress, loadMissionsData]);
 
   const waterPercent = progress ? Math.min(progress.percentage, 100) : 0;
 
@@ -37,10 +73,13 @@ export default function ActivityScreen() {
   const onRefresh = useCallback(async () => {
     if (user?.id) {
       setRefreshing(true);
-      await fetchProgress(user.id, selectedDate);
+      await Promise.all([
+         fetchProgress(user.id, selectedDate),
+         loadMissionsData(user.id, selectedDate)
+      ]);
       setRefreshing(false);
     }
-  }, [user?.id, selectedDate, fetchProgress]);
+  }, [user?.id, selectedDate, fetchProgress, loadMissionsData]);
 
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
@@ -116,13 +155,25 @@ export default function ActivityScreen() {
               <Text style={styles.timeTitle}>Thời gian tập</Text>
             </View>
             <View style={styles.circleGraphContainer}>
-              <View style={styles.circleGraph}>
-                <Text style={styles.percentText}>80%</Text>
-                <Text style={styles.goalText}>Mục tiêu</Text>
+              <View style={[
+                styles.circleGraph,
+                {
+                  borderTopColor: workoutPercent > 0 ? "#8B5CF6" : "#E2E8F0",
+                  borderRightColor: workoutPercent >= 25 ? "#8B5CF6" : "#E2E8F0",
+                  borderBottomColor: workoutPercent >= 50 ? "#8B5CF6" : "#E2E8F0",
+                  borderLeftColor: workoutPercent >= 75 ? "#8B5CF6" : "#E2E8F0",
+                  shadowOpacity: workoutPercent > 0 ? 0.2 : 0, 
+                  transform: [{ rotate: '45deg' }]
+                }
+              ]}>
+                <View style={{ transform: [{ rotate: '-45deg' }], alignItems: 'center' }}>
+                  <Text style={styles.percentText}>{workoutPercent}%</Text>
+                  <Text style={styles.goalText}>Mục tiêu</Text>
+                </View>
               </View>
             </View>
             <View style={styles.timeFooter}>
-              <Text style={styles.timeValueText}>45</Text>
+              <Text style={styles.timeValueText}>{workoutMinutes}</Text>
               <Text style={styles.timeUnitText}>phút</Text>
             </View>
           </View>
@@ -216,7 +267,7 @@ const styles = StyleSheet.create({
   timeHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timeTitle: { fontSize: 14, fontWeight: "700", color: "#64748B" },
   circleGraphContainer: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  circleGraph: { width: 100, height: 100, borderRadius: 50, borderWidth: 8, borderColor: "#E2E8F0", borderTopColor: "#8B5CF6", borderRightColor: "#8B5CF6", justifyContent: 'center', alignItems: 'center', shadowColor: "#8B5CF6", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  circleGraph: { width: 100, height: 100, borderRadius: 50, borderWidth: 8, borderColor: "#E2E8F0", justifyContent: 'center', alignItems: 'center', shadowColor: "#8B5CF6", shadowOffset: { width: 0, height: 4 }, shadowRadius: 8 },
   percentText: { fontSize: 20, fontWeight: "900", color: "#111" },
   goalText: { fontSize: 10, fontWeight: "600", color: "#94A3B8", marginTop: 2 },
   timeFooter: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 4 },

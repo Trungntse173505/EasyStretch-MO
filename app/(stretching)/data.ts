@@ -3,13 +3,13 @@
 
 export interface StationMeta {
   order: number;
-  name: string;           // Tên hiển thị
+  name: string;
   icon: string;
-  notifHour: number;      // Giờ thông báo
-  notifMinute: number;    // Phút thông báo
-  windowStartHour: number;  // Giờ bắt đầu cửa sổ
+  notifHour: number;
+  notifMinute: number;
+  windowStartHour: number;
   windowStartMinute: number;
-  windowEndHour: number;    // Giờ kết thúc cửa sổ
+  windowEndHour: number;
   windowEndMinute: number;
   notifTitle: string;
   notifBody: string;
@@ -78,6 +78,20 @@ export const isStationUnlocked = (station: StationMeta, now: Date = new Date()):
   const windowStart = station.windowStartHour * 60 + station.windowStartMinute;
   const windowEnd = station.windowEndHour * 60 + station.windowEndMinute;
   return currentMinutes >= windowStart && currentMinutes <= windowEnd;
+};
+
+// Helper: Kiểm tra xem đã qua giờ kết thúc chưa
+export const isStationMissed = (station: StationMeta, now: Date = new Date()): boolean => {
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const windowEnd = station.windowEndHour * 60 + station.windowEndMinute;
+  return currentMinutes > windowEnd;
+};
+
+// Helper: Kiểm tra xem đã đến giờ bắt đầu chưa (cho tương lai)
+export const isStationFuture = (station: StationMeta, now: Date = new Date()): boolean => {
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const windowStart = station.windowStartHour * 60 + station.windowStartMinute;
+  return currentMinutes < windowStart;
 };
 
 // Helper: Format cửa sổ thời gian hiển thị

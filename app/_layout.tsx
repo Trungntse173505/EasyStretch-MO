@@ -1,10 +1,17 @@
 import { useAuthObserver } from "@/hooks/auth/useAuthObserver";
 import { useNotifications } from "@/hooks/notification/useNotifications";
+import { runGarbageCollection } from "@/utils/garbageCollection";
 import { Stack } from "expo-router";
+import React, { useEffect } from "react";
 import { ActivityIndicator, Platform, StatusBar, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RootLayout() {
+  // Dọn rác bộ nhớ tự động vào lúc mở app
+  useEffect(() => {
+    runGarbageCollection();
+  }, []);
+
   // 2. Gọi hook thông báo để nó tự động xin quyền và lấy Push Token khi mở app
   const { expoPushToken } = useNotifications();
 

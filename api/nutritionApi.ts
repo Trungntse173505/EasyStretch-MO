@@ -7,6 +7,7 @@ import axiosClient from './axiosClient';
 
 export interface Food {
   id?: string; 
+  user_id?: string; // ID người tạo (UUID)
   name: string;
   description?: string;
   calories: number;
@@ -14,6 +15,7 @@ export interface Food {
   carbs: number;
   fat: number;
   image_url?: string | null;
+  categories?: string[]; // Danh mục của món ăn
 }
 
 export interface MealItemRequest {

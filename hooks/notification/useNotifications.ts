@@ -1,4 +1,4 @@
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, requestPermission, getToken, AuthorizationStatus } from '@react-native-firebase/messaging';
 import { useEffect, useState } from "react";
 
 export const useNotifications = () => {
@@ -6,15 +6,17 @@ export const useNotifications = () => {
 
   useEffect(() => {
     const setupFirebasemessage = async () => {
-      const authStatus = await messaging().requestPermission();
+      const messaging = getMessaging(); // Khởi tạo instance messaging
+      
+      const authStatus = await requestPermission(messaging);
       const enabled = 
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+          authStatus === AuthorizationStatus.AUTHORIZED ||
+          authStatus === AuthorizationStatus.PROVISIONAL;
           
       if (enabled) {
         console.log("Có quyền thông báo");
         try {
-          const token = await messaging().getToken();
+          const token = await getToken(messaging);
           console.log('🚀 FCM Token thiết bị của bạn:', token);
           setExpoPushToken(token);
         } catch (error) {

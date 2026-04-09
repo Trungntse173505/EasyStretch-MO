@@ -47,8 +47,11 @@ export const useMeal = () => {
 
       // Bước 2: Nếu có món MỚI, gọi API POST /foods/many
       if (newFoods.length > 0) {
-        // Loại bỏ các trường UI (quantity, isNew) trước khi gửi tạo Food
-        const foodsToCreate = newFoods.map(({ quantity, isNew, ...rest }) => rest as Food);
+        // Loại bỏ các trường UI (quantity, isNew) và gán thêm user_id trước khi gửi tạo Food
+        const foodsToCreate = newFoods.map(({ quantity, isNew, ...rest }) => ({
+          ...rest,
+          user_id: userId
+        }) as Food);
         const createRes = await createManyFoods(foodsToCreate);
         
         const createdData = createRes?.data || createRes; // Mảng các món ăn đã được BE cấp ID

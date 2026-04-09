@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ResizeMode, Video } from "expo-av";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   Alert,
   Animated,
@@ -10,9 +9,11 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMissions } from "@/hooks/mission/useMissions";
+import YoutubePlayer from "react-native-youtube-iframe";
 
 export default function ExercisePlayScreen() {
   const router = useRouter();
@@ -31,9 +32,24 @@ export default function ExercisePlayScreen() {
     date: string;
   }>();
 
-  const { finishExercise } = useMissions();
+  const getYouTubeID = (url: any) => {
+    if (!url || typeof url !== 'string' || url === '' || url === 'null') return null;
+    try {
+      const decodedUrl = decodeURIComponent(url).trim();
+      // Regex mạnh mẽ cho mọi định dạng YouTube
+      const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+      const match = decodedUrl.match(regex);
+      if (match) return match[1];
+      if (decodedUrl.length === 11) return decodedUrl;
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
 
-  const hasVideo = !!params.video_url && params.video_url !== '' && params.video_url !== 'null';
+  const { finishExercise } = useMissions();
+  const videoId = useMemo(() => getYouTubeID(params.video_url), [params.video_url]);
+  const hasVideo = !!videoId;
   const duration = parseInt(params.duration || '60', 10);
 
   // ---- Timer states (dùng khi không có video) ----
@@ -44,25 +60,54 @@ export default function ExercisePlayScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // ---- Video states (dùng khi có video) ----
-  const videoRef = useRef<Video>(null);
-  const [videoFinished, setVideoFinished] = useState(false);
+  const playerRef = useRef<any>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const isFirstPlay = useRef(true); // Cờ để chỉ seek mồi 1 lần duy nhất
 
   // ---- Common ----
   const [isFinished, setIsFinished] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false); // Theo dõi xem đã bắt đầu tập chưa
 
-  // Xác định trạng thái "xong" (video kết thúc HOẶC timer = 0)
+  // Điều khiển Video trực tiếp qua Ref với thủ thuật Seek để "mồi" video chạy trên Android
   useEffect(() => {
-    if (!hasVideo && timeLeft === 0) setIsFinished(true);
-  }, [timeLeft, hasVideo]);
+    if (hasVideo && hasStarted && videoReady) {
+      if (isRunning) {
+        // Chỉ seek mồi 1 lần duy nhất khi mới bắt đầu để phá băng WebView Android 
+        // Sau đó gọi playVideo để đảm bảo khởi động
+        if (isFirstPlay.current) {
+          playerRef.current?.seekTo?.(0, true);
+          isFirstPlay.current = false;
+        }
+        
+        const timer = setTimeout(() => {
+          playerRef.current?.playVideo?.();
+        }, 50);
+        return () => clearTimeout(timer);
+      } else {
+        // Khi dừng, ta để player tự xử lý qua prop play={false} 
+        // để tránh xung đột lệnh pauseVideo với trạng thái nội bộ của nó
+      }
+    }
+  }, [isRunning, hasVideo, hasStarted, videoReady]);
 
+  // Xác định trạng thái "xong" khi timer = 0
   useEffect(() => {
-    if (hasVideo && videoFinished) setIsFinished(true);
-  }, [videoFinished, hasVideo]);
+    if (timeLeft === 0) setIsFinished(true);
+  }, [timeLeft]);
 
-  // Pulse animation (chỉ dùng cho timer)
+  const onVideoStateChange = useCallback((state: string) => {
+    // Chỉ xử lý khi video kết thúc hẳn để đóng bài tập
+    if (state === "ended") {
+      setIsRunning(false);
+    }
+    // KHÔNG cho phép YouTube tự ý đổi trạng thái isRunning của App 
+    // để tránh vòng lặp khiến nút Pause ở dưới không có tác dụng.
+  }, []);
+
+  // Pulse animation
   useEffect(() => {
-    if (!hasVideo && isRunning) {
+    if (isRunning) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.08, duration: 600, useNativeDriver: true }),
@@ -73,11 +118,11 @@ export default function ExercisePlayScreen() {
       pulseAnim.stopAnimation();
       pulseAnim.setValue(1);
     }
-  }, [isRunning, hasVideo]);
+  }, [isRunning]);
 
   // Timer countdown
   useEffect(() => {
-    if (!hasVideo && isRunning) {
+    if (isRunning) {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -92,19 +137,17 @@ export default function ExercisePlayScreen() {
       if (timerRef.current) clearInterval(timerRef.current);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isRunning, hasVideo]);
+  }, [isRunning]);
 
   // Animate timer progress bar
   useEffect(() => {
-    if (!hasVideo) {
-      const progress = 1 - timeLeft / duration;
-      Animated.timing(progressAnim, {
-        toValue: progress,
-        duration: 400,
-        useNativeDriver: false,
-      }).start();
-    }
-  }, [timeLeft, duration, hasVideo]);
+    const progress = 1 - timeLeft / duration;
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+  }, [timeLeft, duration]);
 
   const handleReset = useCallback(() => {
     setIsRunning(false);
@@ -134,6 +177,11 @@ export default function ExercisePlayScreen() {
     return `${m}:${sec}`;
   };
 
+  const togglePlay = () => {
+    if (!hasStarted) setHasStarted(true);
+    setIsRunning(prev => !prev);
+  }
+
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
@@ -154,36 +202,44 @@ export default function ExercisePlayScreen() {
 
       {/* ====== VIDEO hoặc IMAGE ====== */}
       <View style={styles.mediaContainer}>
-        {hasVideo ? (
-          <Video
-            ref={videoRef}
-            source={{ uri: params.video_url }}
-            style={styles.media}
-            resizeMode={ResizeMode.COVER}
-            useNativeControls
-            shouldPlay
-            onPlaybackStatusUpdate={(status) => {
-              if (status.isLoaded && status.didJustFinish) {
-                setVideoFinished(true);
-              }
+        {hasVideo && hasStarted ? (
+          <YoutubePlayer
+            ref={playerRef}
+            key={videoId}
+            height={260}
+            width={Dimensions.get('window').width}
+            play={isRunning}
+            videoId={videoId}
+            mute={true}
+            onReady={() => setVideoReady(true)}
+            onChangeState={onVideoStateChange}
+            forceAndroidAutoplay={true}
+            initialPlayerParams={{
+              autoplay: false, // Dùng Ref điều khiển nên tắt autoplay của cái này
+              rel: false,
+              modestbranding: true,
+              cc_load_policy: 0,
+            }}
+            webViewProps={{
+              allowsFullscreenVideo: true,
+              allowsInlineMediaPlayback: true,
+              mediaPlaybackRequiresUserAction: false,
+              javaScriptEnabled: true,
+              domStorageEnabled: true,
+              mixedContentMode: "always",
+              androidLayerType: "hardware",
+              renderToHardwareTextureAndroid: true,
+              allowsProtectedMediaPlaybackAndroid: true, // Thêm quyền điều khiển Media trên Android
             }}
           />
-        ) : params.img_url ? (
+        ) : (params.img_url || !hasStarted) ? (
           <Image source={{ uri: params.img_url }} style={styles.media} resizeMode="cover" />
         ) : (
           <View style={[styles.media, styles.mediaplaceHolder]}>
             <Ionicons name="fitness" size={80} color="#D4F93D" />
           </View>
         )}
-        <View style={styles.mediaOverlay} />
-
-        {/* Hiển thị badge "Đang phát video" khi có video chưa xong */}
-        {hasVideo && !videoFinished && (
-          <View style={styles.watchHint}>
-            <Ionicons name="eye" size={14} color="#FFF" />
-            <Text style={styles.watchHintText}>Xem hết video để hoàn thành</Text>
-          </View>
-        )}
+        {!hasStarted && <View style={styles.mediaOverlay} />}
       </View>
 
       {/* ====== CONTENT ====== */}
@@ -200,52 +256,32 @@ export default function ExercisePlayScreen() {
           <Text style={styles.exerciseDesc}>{params.description}</Text>
         ) : null}
 
-        {/* ====== TIMER (chỉ render khi KHÔNG có video) ====== */}
-        {!hasVideo && (
-          <>
-            <Animated.View style={[styles.timerCircle, { transform: [{ scale: pulseAnim }] }]}>
-              <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-              <Text style={styles.timerLabel}>
-                {isFinished ? 'XONG!' : isRunning ? 'đang tập...' : 'sẵn sàng'}
-              </Text>
-            </Animated.View>
-
-            <View style={styles.progressBg}>
-              <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
-            </View>
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressLabelText}>0:00</Text>
-              <Text style={styles.progressLabelText}>{formatTime(duration)}</Text>
-            </View>
-          </>
-        )}
+        {/* TIMER UI - PROGRESS BAR ONLY */}
+        <View style={styles.progressBg}>
+          <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+        </View>
+        <View style={styles.progressLabels}>
+          <Text style={styles.progressLabelText}>0:00</Text>
+          <Text style={styles.progressLabelText}>
+            {isFinished ? 'SẴN SÀNG HOÀN THÀNH' : formatTime(timeLeft)}
+          </Text>
+        </View>
 
         {/* ====== CONTROLS ====== */}
         {!isFinished ? (
-          // Timer controls (chỉ hiện khi không có video)
-          !hasVideo ? (
-            <View style={styles.controls}>
-              <TouchableOpacity style={styles.resetBtn} onPress={handleReset} activeOpacity={0.8}>
-                <Ionicons name="refresh" size={22} color="#FFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.mainBtn}
-                onPress={() => setIsRunning(r => !r)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name={isRunning ? 'pause' : 'play'} size={32} color="#111" />
-              </TouchableOpacity>
-              <View style={{ width: 56 }} />
-            </View>
-          ) : (
-            // Đang xem video — hiển thị hint
-            <View style={styles.videoHintBox}>
-              <Ionicons name="videocam" size={22} color="#D4F93D" />
-              <Text style={styles.videoHintText}>
-                Xem hết video bên trên rồi bấm Hoàn thành!
-              </Text>
-            </View>
-          )
+          <View style={styles.controls}>
+            <TouchableOpacity style={styles.resetBtn} onPress={handleReset} activeOpacity={0.8}>
+              <Ionicons name="refresh" size={22} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mainBtn}
+              onPress={togglePlay}
+              activeOpacity={0.85}
+            >
+              <Ionicons name={isRunning ? 'pause' : 'play'} size={32} color="#111" />
+            </TouchableOpacity>
+            <View style={{ width: 56 }} />
+          </View>
         ) : (
           // NÚT HOÀN THÀNH — chỉ hiện khi video xong hoặc timer = 0
           <TouchableOpacity
