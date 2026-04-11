@@ -10,12 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "Easystretch",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "bundleIdentifier": "com.easystretch.app"
     },
     "android": {
-      "package": "Easystretch",
-      "googleServicesFile": "./google-services.json",
+      "package": "com.easystretch.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
@@ -23,18 +21,22 @@
     },
     "plugins": [
       "expo-router",
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
       ],
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d934920d-9316-4b90-aa06-846f8629c646"
+      }
+    }
   }
 }

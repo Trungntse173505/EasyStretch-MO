@@ -1,3 +1,4 @@
+import { useGoogleLogin } from "@/hooks/auth/useGoogleLogin";
 import { useLogin } from "@/hooks/auth/useLogin";
 import { validateEmail, validatePassword } from "@/utils/validatorsform";
 import { useRouter } from "expo-router";
@@ -28,6 +29,7 @@ export default function Login() {
   const canSubmit = !emailError && !passError && email.trim() && password.trim();
 
   const { login, loading, apiError } = useLogin();
+  const { loginWithGoogle, isGoogleLoading } = useGoogleLogin();
 
   const handleLogin = () => {
     setTouchedEmail(true);
@@ -54,7 +56,7 @@ export default function Login() {
             leftIcon="mail-outline"
             placeholder="Nhập email"
             keyboardType="email-address"
-            editable={!loading}
+            editable={!loading && !isGoogleLoading}
             error={emailError}
             showError={touchedEmail}
           />
@@ -65,7 +67,7 @@ export default function Login() {
             onBlur={() => setTouchedPassword(true)}
             leftIcon="lock-closed-outline"
             placeholder="Nhập mật khẩu"
-            editable={!loading}
+            editable={!loading && !isGoogleLoading}
             secure
             error={passError}
             showError={touchedPassword}
@@ -74,8 +76,8 @@ export default function Login() {
           {!!apiError && <Text style={styles.apiError}>{apiError}</Text>}
 
           <TouchableOpacity
-            style={[styles.primaryBtn, (!canSubmit || loading) && { opacity: 0.6 }]}
-            disabled={!canSubmit || loading}
+            style={[styles.primaryBtn, (!canSubmit || loading || isGoogleLoading) && { opacity: 0.6 }]}
+            disabled={!canSubmit || loading || isGoogleLoading}
             onPress={handleLogin}
             activeOpacity={0.85}
           >
@@ -89,14 +91,35 @@ export default function Login() {
             )}
           </TouchableOpacity>
 
+          {/* Dòng chữ HOẶC */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>Hoặc</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Nút đăng nhập Google */}
+          <TouchableOpacity
+            style={[styles.googleBtn, (loading || isGoogleLoading) && { opacity: 0.6 }]}
+            disabled={loading || isGoogleLoading}
+            onPress={loginWithGoogle}
+            activeOpacity={0.85}
+          >
+            {isGoogleLoading ? (
+              <ActivityIndicator color="#111" />
+            ) : (
+              <Text style={styles.googleBtnText}>Đăng nhập bằng Google</Text>
+            )}
+          </TouchableOpacity>
+
           <View style={styles.bottomRow}>
             <Text style={styles.muted}>Chưa có tài khoản? </Text>
-            <TouchableOpacity disabled={loading} onPress={() => router.push("/(auth)/register")}>
+            <TouchableOpacity disabled={loading || isGoogleLoading} onPress={() => router.push("/(auth)/register")}>
               <Text style={styles.link}>Đăng ký</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity disabled={loading} onPress={() => router.push("/(auth)/otp")}>
+          <TouchableOpacity disabled={loading || isGoogleLoading} onPress={() => router.push("/(auth)/otp")}>
             <Text style={[styles.link, { textAlign: "center", marginTop: 20 }]}>Quên Mật Khẩu</Text>
           </TouchableOpacity>
         </View>
@@ -128,4 +151,33 @@ const styles = StyleSheet.create({
   bottomRow: { flexDirection: "row", justifyContent: "center", marginTop: 14 },
   muted: { color: "#6b7280" },
   link: { color: "#E06400", fontWeight: "800" },
+
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 24,
+    marginBottom: 18
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e5e7eb"
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: "#6b7280",
+    fontWeight: "500"
+  },
+  googleBtn: {
+    height: 52,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  googleBtnText: { color: "#111", fontWeight: "800" },
 });
