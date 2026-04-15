@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMissions } from "@/hooks/mission/useMissions";
+import { transformMediaUrl } from "@/utils/mediaUtils";
+import { useVideoPlayer, VideoView } from 'expo-video';
 import YoutubePlayer from "react-native-youtube-iframe";
 
 export default function ExercisePlayScreen() {
@@ -33,9 +35,11 @@ export default function ExercisePlayScreen() {
   }>();
 
   const getYouTubeID = (url: any) => {
-    if (!url || typeof url !== 'string' || url === '' || url === 'null') return null;
+    if (!url) return null;
+    const urlStr = Array.isArray(url) ? url[0] : url;
+    if (typeof urlStr !== 'string' || urlStr === '' || urlStr === 'null') return null;
     try {
-      const decodedUrl = decodeURIComponent(url).trim();
+      const decodedUrl = decodeURIComponent(urlStr).trim();
       // Regex mạnh mẽ cho mọi định dạng YouTube
       const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
       const match = decodedUrl.match(regex);
@@ -47,9 +51,40 @@ export default function ExercisePlayScreen() {
     }
   };
 
-  const { finishExercise } = useMissions();
+  const { missions, fetchMissions, finishExercise } = useMissions();
+
+  useEffect(() => {
+    if (params.date) {
+      fetchMissions(params.date);
+    }
+  }, [params.date]);
+
+  const allExercises = useMemo(() => {
+    return missions
+      .flatMap(m => m.mission_exercises.map(me => ({ ...me.exercises, order: me.order })))
+      .sort((a, b) => a.order - b.order);
+  }, [missions]);
+
+  const nextEx = useMemo(() => {
+    const idx = allExercises.findIndex(ex => ex.id === params.exercise_id);
+    if (idx !== -1 && idx < allExercises.length - 1) {
+      return allExercises[idx + 1];
+    }
+    return null;
+  }, [allExercises, params.exercise_id]);
+
   const videoId = useMemo(() => getYouTubeID(params.video_url), [params.video_url]);
   const hasVideo = !!videoId;
+  const isDirectVideo = !hasVideo && params.video_url;
+
+  const player = useVideoPlayer(isDirectVideo ? (transformMediaUrl(params.video_url, 'video') ?? '') : '', (player) => {
+    player.loop = true;
+    player.bufferOptions = {
+      preferredForwardBufferDuration: 30,
+      maxBufferBytes: 50 * 1024 * 1024,
+    };
+  });
+
   const duration = parseInt(params.duration || '60', 10);
 
   // ---- Timer states (dùng khi không có video) ----
@@ -62,7 +97,20 @@ export default function ExercisePlayScreen() {
   // ---- Video states (dùng khi có video) ----
   const playerRef = useRef<any>(null);
   const [videoReady, setVideoReady] = useState(false);
-  const isFirstPlay = useRef(true); // Cờ để chỉ seek mồi 1 lần duy nhất
+  const [videoStatus, setVideoStatus] = useState<string>('idle');
+  const isFirstPlay = useRef(true); 
+
+  // Sync direct video playback with isRunning
+  useEffect(() => {
+    if (isDirectVideo) {
+      const sub = player.addListener('statusChange', (payload: any) => {
+        setVideoStatus(payload.status);
+      });
+      if (isRunning) player.play();
+      else player.pause();
+      return () => sub.remove();
+    }
+  }, [isRunning, player, isDirectVideo]);
 
   // ---- Common ----
   const [isFinished, setIsFinished] = useState(false);
@@ -232,8 +280,20 @@ export default function ExercisePlayScreen() {
               allowsProtectedMediaPlaybackAndroid: true, // Thêm quyền điều khiển Media trên Android
             }}
           />
+        ) : isDirectVideo && hasStarted ? (
+          <View style={{ width: '100%', height: 260 }}>
+             <VideoView
+              style={{ width: '100%', height: 260 }}
+              player={player}
+              allowsFullscreen
+              allowsPictureInPicture
+            />
+            {(videoStatus === 'loading' || videoStatus === 'idle') && (
+              <Image source={{ uri: transformMediaUrl(params.img_url) || 'https://via.placeholder.com/200' }} style={[styles.media, StyleSheet.absoluteFill]} resizeMode="cover" />
+            )}
+          </View>
         ) : (params.img_url || !hasStarted) ? (
-          <Image source={{ uri: params.img_url }} style={styles.media} resizeMode="cover" />
+          <Image source={{ uri: transformMediaUrl(params.img_url) }} style={styles.media} resizeMode="cover" />
         ) : (
           <View style={[styles.media, styles.mediaplaceHolder]}>
             <Ionicons name="fitness" size={80} color="#D4F93D" />

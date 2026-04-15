@@ -3,7 +3,7 @@ import { useWaterProgress } from '@/hooks/water/useWaterProgress';
 import { useMissions } from '@/hooks/mission/useMissions';
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -84,19 +84,17 @@ export default function ActivityScreen() {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  const generateDates = () => {
+  const DATES = useMemo(() => {
     const dates = [];
     const dayLabels = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
     const startOfWeek = new Date(now);
     const dayOfWeek = now.getDay();
     const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
     startOfWeek.setDate(diff);
-
     for (let i = 0; i < 7; i++) {
       const tempDate = new Date(startOfWeek);
       tempDate.setDate(startOfWeek.getDate() + i);
       const dateStr = tempDate.toISOString().split('T')[0];
-
       dates.push({
         d: dayLabels[tempDate.getDay()],
         n: tempDate.getDate().toString(),
@@ -106,9 +104,8 @@ export default function ActivityScreen() {
       });
     }
     return dates;
-  };
-
-  const DATES = generateDates();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

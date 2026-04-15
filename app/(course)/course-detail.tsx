@@ -1,15 +1,20 @@
 import { useCourseOwnership } from '@/hooks/course/useCourseOwnership';
+import { transformMediaUrl } from '@/utils/mediaUtils';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import axiosClient from '../../api/axiosClient';
 
 export default function CourseDetailScreen() {
   const router = useRouter();
-  const { id, title, img_url, isBought } = useLocalSearchParams();
-  const { hasBought: apiHasBought, loading, checkOwnership } = useCourseOwnership();
+  const { id, title, img_url, isBought, courseLevel } = useLocalSearchParams();
+  const { hasBought: apiHasBought, loading: loadingOwnership, checkOwnership } = useCourseOwnership();
+  const [courseData, setCourseData] = useState<any>(null);
+  const [loadingCourse, setLoadingCourse] = useState(true);
+  const [activeWeek, setActiveWeek] = useState(1);
 
   // Logic gộp: Hoặc là API check ra, hoặc là đi từ Tầng 1 (isBought=true)
   const hasBought = apiHasBought || isBought === 'true';
@@ -28,6 +33,33 @@ export default function CourseDetailScreen() {
     });
     return () => subscription.remove();
   }, [id, checkOwnership, isBought]);
+
+  useEffect(() => {
+    const fetchFullCourse = async () => {
+      try {
+        if (!id) return;
+        setLoadingCourse(true);
+        const endpoint = courseLevel === 'relaxation' ? `/courses/all/${id}` : `/courses/payment/${id}`;
+        const res = await axiosClient.get(endpoint);
+        const data = res.data?.data || res.data;
+        if (data) {
+          setCourseData(data);
+          setActiveWeek(data.course_days?.[0]?.week_number || 1);
+        }
+      } catch (e) {
+        console.log("Lỗi tải thông tin lộ trình:", e);
+      } finally {
+        setLoadingCourse(false);
+      }
+    };
+    fetchFullCourse();
+  }, [id]);
+
+  const uniqueWeeks = useMemo(() => {
+    if (!courseData?.course_days) return [];
+    const weeks = courseData.course_days.map((d: any) => d.week_number).filter((w: any) => w != null);
+    return Array.from(new Set(weeks)).sort((a: any, b: any) => a - b);
+  }, [courseData]);
 
   const handleShowGuidance = async () => {
     const websiteUrl = "https://www.easystretch.click";
@@ -51,7 +83,7 @@ export default function CourseDetailScreen() {
   return (
     <View style={styles.container}>
       {/* HEADER COVER */}
-      <ImageBackground source={{ uri: (img_url as string) || 'https://via.placeholder.com/400' }} style={styles.headerCover}>
+      <ImageBackground source={{ uri: transformMediaUrl(img_url as string) || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1000&auto=format&fit=crop' }} style={styles.headerCover}>
         <View style={styles.overlay} />
         <SafeAreaView edges={['top']} style={styles.backButtonSafeArea}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8}>
@@ -70,13 +102,62 @@ export default function CourseDetailScreen() {
             <Text style={styles.tagText}>Khóa phục hồi chuyên sâu</Text>
           </View>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.description}>Khóa học này sẽ giúp bạn giãn cơ sâu, giảm đau mỏi nhanh chóng và cải thiện tư thế chỉ với 15 phút mỗi ngày với sự kết hợp của Yoga và giãn cơ cơ bản.</Text>
+
+          {/* SYLLABUS SECTION */}
+          <View style={styles.syllabusSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Lộ trình học tập</Text>
+              <View style={styles.badgeCount}>
+                <Text style={styles.badgeText}>{courseData?.course_days?.length || 0} ngày</Text>
+              </View>
+            </View>
+
+            {loadingCourse ? (
+              <ActivityIndicator color="#111" style={{ marginVertical: 30 }} />
+            ) : (
+              <>
+                {/* Week Selector in Detail Screen */}
+                <View style={styles.weekFilter}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                    {uniqueWeeks.map((week) => {
+                      const isSelected = activeWeek === week;
+                      return (
+                        <TouchableOpacity
+                        key={String(week)}
+                          style={[styles.weekPill, isSelected && styles.weekPillActive]}
+                          onPress={() => setActiveWeek(week as number)}
+                        >
+                          <Text style={[styles.weekPillText, isSelected && styles.weekPillTextActive]}>Tuần {String(week)}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+
+                {/* Day List for active week */}
+                <View style={styles.dayList}>
+                  {courseData?.course_days?.filter((d: any) => d.week_number === activeWeek).map((day: any) => (
+                    <View key={day.id} style={styles.dayItem}>
+                      <View style={styles.dayNumberCircle}>
+                        <Text style={styles.dayNumberText}>{day.day_number}</Text>
+                      </View>
+                      <View style={styles.dayInfo}>
+                        <Text style={styles.dayTitle}>Ngày {day.day_number}: {day.course_day_exercises?.[0]?.exercises?.title || "Sẵn sàng tập luyện"}</Text>
+                        <Text style={styles.dayMeta}>{day.course_day_exercises?.length || 0} bài tập • {Math.floor((day.course_day_exercises?.reduce((acc: any, curr: any) => acc + (curr.exercises?.duration || 0), 0)) / 60)} phút</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+          </View>
         </ScrollView>
       </View>
 
       {/* FLOATING ACTION BOTTOM */}
       <View style={styles.bottomBar}>
-        {loading ? (
+        {loadingOwnership ? (
           <ActivityIndicator size="large" color="#111" />
         ) : hasBought ? (
           <View style={styles.actionRow}>
@@ -145,4 +226,25 @@ const styles = StyleSheet.create({
   notOwnedText: { fontSize: 22, fontWeight: '900', color: '#64748B', letterSpacing: -0.5 },
   buyButton: { backgroundColor: '#1E293B', paddingHorizontal: 24, paddingVertical: 18, borderRadius: 100, shadowColor: '#1E293B', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6 },
   buyButtonText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
+
+  // New Syllabus Styles
+  syllabusSection: { marginTop: 10 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  sectionTitle: { fontSize: 20, fontWeight: '900', color: '#1E293B' },
+  badgeCount: { backgroundColor: '#F1F5F9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  badgeText: { fontSize: 12, fontWeight: '800', color: '#64748B' },
+
+  weekFilter: { marginBottom: 24 },
+  weekPill: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 100, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9' },
+  weekPillActive: { backgroundColor: '#D4F93D', borderColor: '#D4F93D', shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+  weekPillText: { fontSize: 14, fontWeight: '700', color: '#64748B' },
+  weekPillTextActive: { color: '#1E293B' },
+
+  dayList: { gap: 16 },
+  dayItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 24, borderWidth: 1, borderColor: '#F8FAFC', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.02, shadowRadius: 6, elevation: 1 },
+  dayNumberCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  dayNumberText: { fontSize: 16, fontWeight: '900', color: '#1E293B' },
+  dayInfo: { flex: 1 },
+  dayTitle: { fontSize: 15, fontWeight: '800', color: '#334155', marginBottom: 4 },
+  dayMeta: { fontSize: 12, color: '#94A3B8', fontWeight: '600' }
 });

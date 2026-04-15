@@ -1,4 +1,5 @@
 import { useLeaderboard } from "@/hooks/auth/useLeaderboard";
+import { transformMediaUrl } from "@/utils/mediaUtils";
 import { useUser } from "@/hooks/auth/useUser";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -26,7 +27,7 @@ export default function LeaderboardScreen() {
         username: user.full_name ? `@${user.full_name.replace(/\s+/g, '')}` : "@user",
         points: user.current_point || 0,
         rank: index + 1,
-        avatar: user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || "Khách")}&background=random&color=fff&size=150`,
+        avatar: transformMediaUrl(user.avatar_url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || "Khách")}&background=random&color=fff&size=150`,
         trend: 'up',
         isMe: Boolean(currentUser?.id) && parsedId === String(currentUser?.id)
       };

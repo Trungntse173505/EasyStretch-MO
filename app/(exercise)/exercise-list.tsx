@@ -1,4 +1,5 @@
 import { useExercisesClient } from "@/hooks/exercise/useExercisesClient";
+import { transformMediaUrl } from "@/utils/mediaUtils";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -37,7 +38,7 @@ export default function ExerciseListScreen() {
       activeOpacity={0.8}
       onPress={() => router.push({ pathname: "/(exercise)/exercise-detail", params: { id: item.id } })}
     >
-      <Image source={{ uri: item.img_list?.[0] }} style={styles.exImg} />
+      <Image source={{ uri: transformMediaUrl(item.img_list?.[0]) || 'https://via.placeholder.com/200' }} style={styles.exImg} />
       <View style={styles.exInfo}>
         <Text style={styles.exTitle} numberOfLines={1}>{item.title}</Text>
 

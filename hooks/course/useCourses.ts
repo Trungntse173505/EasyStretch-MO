@@ -1,6 +1,6 @@
 // hooks/course/useCourses.ts
-import { useEffect, useState } from 'react';
-import courseApi, { Course } from '../../api/courseApi'; // Nhớ trỏ đúng đường dẫn
+import { useCallback, useEffect, useState } from 'react';
+import courseApi, { Course } from '../../api/courseApi';
 
 export const useCourses = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -8,19 +8,20 @@ export const useCourses = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const allData = await courseApi.getAll();
 
       let parsedBought: Course[] = [];
       try {
         const boughtDataRaw = await courseApi.getBought();
-        // Kiểm tra an toàn và Flatten dữ liệu từ { courses: {...} } về {...}
         const rawList = Array.isArray(boughtDataRaw) ? boughtDataRaw : ((boughtDataRaw as any)?.data || []);
-        parsedBought = rawList.map((item: any) => item.courses || item);
+        parsedBought = rawList
+          .map((item: any) => item.courses || item)
+          .filter((c: Course) => String(c.id) !== '49414f0c-ea91-4ded-bd2d-3536c2ea82e5');
       } catch (err: any) {
         const errDump = JSON.stringify(err.response?.data || err.message);
         setError("Lấy Khoá Đã Mua Lỗi: " + errDump);
@@ -28,30 +29,30 @@ export const useCourses = () => {
 
       setBoughtCourses(parsedBought);
 
-      // Lọc: Mảng Khám phá (courses) = Toàn bộ KHÔNG NẰM TRONG mảng Đã Mua
       const boughtIds = new Set(parsedBought.map((c: Course) => String(c.id)));
-      const exploreData = allData.filter((c: Course) => !boughtIds.has(String(c.id)));
-      
+      const exploreData = allData.filter(
+        (c: Course) => !boughtIds.has(String(c.id)) &&
+          String(c.id) !== '49414f0c-ea91-4ded-bd2d-3536c2ea82e5');
+
       setCourses(exploreData);
 
     } catch (err: any) {
-      console.error("Lỗi khi fetch courses:", err);
+      console.log("Lỗi khi fetch courses:", err);
       setError("Không thể tải danh sách khóa học. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
-  };
-
-  // Tự động gọi API khi component sử dụng hook này được mount
-  useEffect(() => {
-    fetchCourses();
   }, []);
 
-  return { 
-    courses, 
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
+
+  return {
+    courses,
     boughtCourses,
-    loading, 
-    error, 
-    refetch: fetchCourses 
+    loading,
+    error,
+    refetch: fetchCourses
   };
 };

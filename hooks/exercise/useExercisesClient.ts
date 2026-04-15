@@ -27,7 +27,7 @@ export const useExercisesClient = () => {
       }
 
     } catch (err: any) {
-      console.error("Lỗi fetch exercises:", err);
+      console.log("Lỗi fetch exercises:", err);
       setError("Không thể tải danh sách bài tập.");
     } finally {
       setLoading(false);

@@ -29,6 +29,8 @@ export interface UserData {
   weight_kg: number | null;
   goal: string | null;
   role: string;
+  is_subscriber?: string;
+  avatar_url?: string | null;
 }
 
 interface ApiResponse<T> {

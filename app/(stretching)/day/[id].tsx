@@ -5,6 +5,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacit
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MissionExercise } from "@/api/missionApi";
 import { useMissions } from "@/hooks/mission/useMissions";
+import { transformMediaUrl } from "@/utils/mediaUtils";
 import { formatStationWindow, getStationByOrder, isStationUnlocked, isStationMissed, isStationFuture } from "../data";
 
 const formatDuration = (seconds: number) => {
@@ -196,7 +197,7 @@ export default function DayMissionScreen() {
                     {/* Image */}
                     <View style={[styles.imgWrap, isLocked && styles.imgWrapLocked]}>
                       {imgUrl ? (
-                        <Image source={{ uri: imgUrl }} style={styles.exerciseImg} />
+                        <Image source={{ uri: transformMediaUrl(imgUrl) || 'https://via.placeholder.com/200' }} style={styles.exerciseImg} />
                       ) : (
                         <View style={[styles.exerciseImg, styles.imgPlaceholder]}>
                           <Ionicons name={isLocked ? 'lock-closed' : 'fitness'} size={28} color={isLocked ? 'rgba(255,255,255,0.2)' : '#D4F93D'} />

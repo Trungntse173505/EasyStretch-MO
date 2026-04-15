@@ -11,6 +11,10 @@ export interface Exercise {
   created_at: string;
   img_list: string[];
   type: string | null;
+  rest_after?: number;
+  loop_type?: string;
+  target_value?: number;
+  time_line?: { duration: number; imageIndex: number }[];
 }
 
 const exerciseApi = {

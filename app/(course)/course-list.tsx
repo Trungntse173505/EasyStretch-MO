@@ -1,7 +1,13 @@
+import { useUser } from "@/hooks/auth/useUser";
 import { useCourses } from "@/hooks/course/useCourses";
+import { useCoursesRecover } from "@/hooks/course/useCoursesRecover";
+import { useCoursesRelaxation } from "@/hooks/course/useCoursesRelaxation";
+import { useCoursesRelaxationFree } from "@/hooks/course/useCoursesRelaxationFree";
+import { getCourseLevelLabel } from "@/utils/courseUtils";
+import { transformMediaUrl } from "@/utils/mediaUtils";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -17,13 +23,26 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function CourseListScreen() {
   const router = useRouter();
   const { title, type } = useLocalSearchParams();
-  const { courses, boughtCourses, loading } = useCourses();
   const [searchText, setSearchText] = useState("");
+  const { user } = useUser();
+  const isSubscriber = user?.is_subscriber === "active";
+
+  const coursesAll = useCourses();
+  const recoverHook = useCoursesRecover();
+  const relaxHook = useCoursesRelaxation();
+  const relaxFreeHook = useCoursesRelaxationFree();
+
+  const loading = coursesAll.loading || recoverHook.loading || relaxHook.loading || relaxFreeHook.loading;
 
   // Lấy dữ liệu nguồn dựa trên 'type'
   const sourceData = useMemo(() => {
-    return type === 'bought' ? boughtCourses : courses;
-  }, [type, courses, boughtCourses]);
+    if (type === 'bought') return coursesAll.boughtCourses;
+    if (type === 'explore' || type === 'recover') return recoverHook.courses;
+    if (type === 'relaxation') {
+      return isSubscriber ? relaxFreeHook.courses : relaxHook.courses;
+    }
+    return coursesAll.courses;
+  }, [type, coursesAll.boughtCourses, coursesAll.courses, recoverHook.courses, relaxFreeHook.courses, relaxHook.courses, isSubscriber]);
 
   // Logic tìm kiếm theo tên
   const filteredData = useMemo(() => {
@@ -33,34 +52,33 @@ export default function CourseListScreen() {
     );
   }, [searchText, sourceData]);
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.courseCard}
       activeOpacity={0.9}
       onPress={() => router.push({
-        pathname: "/(course)/course-detail",
+        pathname: type === 'relaxation' || item.level === 'relaxation' ? "/(course)/relaxation-detail" : "/(course)/course-detail",
         params: {
           id: item.id,
           title: item.title,
           price: item.price,
           img_url: item.img_url,
-          isBought: type === 'bought' ? 'true' : 'false'
+          isBought: type === 'bought' || (type === 'relaxation' && isSubscriber) ? 'true' : 'false',
+          courseLevel: item.level
         }
       })}
     >
-      <ImageBackground source={{ uri: item.img_url }} style={styles.courseBg} imageStyle={{ borderRadius: 24 }}>
+      <ImageBackground source={{ uri: transformMediaUrl(item.img_url) || 'https://via.placeholder.com/400' }} style={styles.courseBg} imageStyle={{ borderRadius: 24 }}>
         <View style={styles.overlay} />
-        
         <View style={styles.cardHeader}>
           <View style={styles.levelBadge}>
             <Ionicons name="flash" size={14} color="#111" />
-            <Text style={styles.levelText}>{item.level}</Text>
+            <Text style={styles.levelText}>{getCourseLevelLabel(item.level)}</Text>
           </View>
           <View style={styles.playBtn}>
             <Ionicons name="play" size={16} color="#111" style={{ marginLeft: 2 }} />
           </View>
         </View>
-
         <View style={styles.cardFooter}>
           <Text style={styles.courseTitle} numberOfLines={2}>{item.title}</Text>
           <View style={styles.priceTag}>
@@ -71,7 +89,7 @@ export default function CourseListScreen() {
         </View>
       </ImageBackground>
     </TouchableOpacity>
-  );
+  ), [type, isSubscriber, router]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

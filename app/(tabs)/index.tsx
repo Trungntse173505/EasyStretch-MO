@@ -1,36 +1,53 @@
-import { useCourses } from "@/hooks/course/useCourses";
+import { useUser } from "@/hooks/auth/useUser";
+import { useCoursesRecover } from "@/hooks/course/useCoursesRecover";
+import { useCoursesRelaxation } from "@/hooks/course/useCoursesRelaxation";
+import { useCoursesRelaxationFree } from "@/hooks/course/useCoursesRelaxationFree";
 import { useExercisesClient } from "@/hooks/exercise/useExercisesClient";
+import { getCourseLevelLabel } from "@/utils/courseUtils";
+import { transformMediaUrl } from "@/utils/mediaUtils";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, memo, useState } from "react";
 import { ActivityIndicator, Image, ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// ─── Module-level helpers (created once, never re-allocated) ───────────────
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  return m > 0 ? `${m} phút` : `${seconds} s`;
+};
+
+const SectionHeader = memo(({ title, onSeeAll }: { title: string; onSeeAll: () => void }) => (
+  <View style={styles.sectionHeader}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <TouchableOpacity activeOpacity={0.7} onPress={onSeeAll}>
+      <Text style={styles.seeAll}>Tất cả</Text>
+    </TouchableOpacity>
+  </View>
+));
+
 export default function HomeScreen() {
   const router = useRouter();
-  const { courses, boughtCourses, loading: loadingCourses, refetch: refetchCourses, error } = useCourses();
-  const { exercises, loading: loadingEx, refetch: refetchEx } = useExercisesClient();
-  const [refreshing, setRefreshing] = useState(false);
+  const { user } = useUser();
+  const isSubscriber = user?.is_subscriber === "active";
 
+  const recoverHook = useCoursesRecover();
+  const relaxHook = useCoursesRelaxation();
+  const relaxFreeHook = useCoursesRelaxationFree();
+
+  const { boughtCourses, courses: discoverRecoverCourses, loading: loadingCourses, refetch: refetchCourses } = recoverHook;
+  const { exercises, loading: loadingEx, refetch: refetchEx } = useExercisesClient();
+
+  const relaxCoursesToUse = isSubscriber ? relaxFreeHook.courses : relaxHook.courses;
+  const loadingRelaxation = isSubscriber ? relaxFreeHook.loading : relaxHook.loading;
+
+  const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refetchCourses?.(), refetchEx?.()]);
+    await Promise.all([refetchCourses(), relaxHook.refetch(), relaxFreeHook.refetch(), refetchEx?.()]);
     setRefreshing(false);
-  }, [refetchCourses, refetchEx]);
+  }, [refetchCourses, relaxHook, relaxFreeHook, refetchEx]);
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    return m > 0 ? `${m} phút` : `${seconds} s`;
-  };
-
-  const SectionHeader = ({ title, onSeeAll }: any) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <TouchableOpacity activeOpacity={0.7} onPress={onSeeAll}>
-        <Text style={styles.seeAll}>Tất cả</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -52,14 +69,14 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* SECTION 1: KHÓA TẬP CỦA BẠN */}
+        {/* SECTION 1: Khóa Phục Hồi Của Bạn */}
         {boughtCourses?.length > 0 ? (
           <View style={{ marginBottom: 35 }}>
-            <SectionHeader 
-              title="Khóa Tập Của Bạn" 
-              onSeeAll={() => router.push({ 
-                pathname: '/(course)/course-list', 
-                params: { title: 'Khóa Tập Của Bạn', type: 'bought' } 
+            <SectionHeader
+              title="Khóa Phục Hồi Của Bạn"
+              onSeeAll={() => router.push({
+                pathname: '/(course)/course-list',
+                params: { title: 'Khóa Phục Hồi Của Bạn', type: 'bought' }
               })}
             />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll} contentContainerStyle={{ paddingRight: 20 }}>
@@ -68,24 +85,25 @@ export default function HomeScreen() {
                   key={`bought-${item.id}`}
                   style={styles.courseCard}
                   activeOpacity={0.9}
-                  onPress={() => router.push({ 
-                    pathname: "/(course)/course-detail", 
-                    params: { 
-                      id: item.id, 
-                      title: item.title, 
-                      price: item.price, 
+                  onPress={() => router.push({
+                    pathname: "/(course)/course-detail",
+                    params: {
+                      id: item.id,
+                      title: item.title,
+                      price: item.price,
                       img_url: item.img_url,
-                      isBought: 'true'
-                    } 
+                      isBought: 'true',
+                      courseLevel: item.level
+                    }
                   })}
                 >
-                  <ImageBackground source={{ uri: item.img_url }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
+                  <ImageBackground source={{ uri: transformMediaUrl(item.img_url) || 'https://via.placeholder.com/400' }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
                     <View style={styles.overlay} />
 
                     <View style={styles.courseTop}>
                       <View style={styles.levelBadge}>
                         <Ionicons name="flash" size={14} color="#111" />
-                        <Text style={styles.levelText}>{item.level}</Text>
+                        <Text style={styles.levelText}>{getCourseLevelLabel(item.level)}</Text>
                       </View>
                       <View style={styles.playBtn}><Ionicons name="play" size={16} color="#111" style={{ marginLeft: 2 }} /></View>
                     </View>
@@ -93,7 +111,7 @@ export default function HomeScreen() {
                     <View style={styles.courseBottom}>
                       <Text style={styles.courseTitle} numberOfLines={2}>{item.title}</Text>
                       <View style={styles.priceTag}>
-                        <Text style={styles.priceText}>Vào học ngay</Text>
+                        <Text style={styles.priceText}>Vào Xem Ngay</Text>
                       </View>
                     </View>
                   </ImageBackground>
@@ -105,31 +123,75 @@ export default function HomeScreen() {
 
         {/* SECTION 2: KHÁM PHÁ KHÓA TẬP */}
         <View style={{ marginBottom: 35 }}>
-          <SectionHeader 
-            title="Khám Phá Khóa Tập" 
-            onSeeAll={() => router.push({ 
-              pathname: '/(course)/course-list', 
-              params: { title: 'Khám Phá Khóa Tập', type: 'explore' } 
+          <SectionHeader
+            title="Khám Phá Khóa Phục Hồi"
+            onSeeAll={() => router.push({
+              pathname: '/(course)/course-list',
+              params: { title: 'Khám Phá Khóa Phục Hồi', type: 'recover' }
             })}
           />
           {loadingCourses && !refreshing ? (
             <ActivityIndicator size="small" color="#111" style={{ marginVertical: 40 }} />
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll} contentContainerStyle={{ paddingRight: 20 }}>
-              {courses.map((item) => (
+              {discoverRecoverCourses.map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.courseCard}
                   activeOpacity={0.9}
-                  onPress={() => router.push({ pathname: "/(course)/course-detail", params: { id: item.id, title: item.title, price: item.price, img_url: item.img_url } })}
+                  onPress={() => router.push({ pathname: "/(course)/course-detail", params: { id: item.id, title: item.title, price: item.price, img_url: item.img_url, courseLevel: item.level } })}
                 >
-                  <ImageBackground source={{ uri: item.img_url }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
+                  <ImageBackground source={{ uri: transformMediaUrl(item.img_url) || 'https://via.placeholder.com/400' }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
                     <View style={styles.overlay} />
 
                     <View style={styles.courseTop}>
                       <View style={styles.levelBadge}>
                         <Ionicons name="flash" size={14} color="#111" />
-                        <Text style={styles.levelText}>{item.level}</Text>
+                        <Text style={styles.levelText}>{getCourseLevelLabel(item.level)}</Text>
+                      </View>
+                      <View style={styles.playBtn}><Ionicons name="play" size={16} color="#111" style={{ marginLeft: 2 }} /></View>
+                    </View>
+
+                    <View style={styles.courseBottom}>
+                      <Text style={styles.courseTitle} numberOfLines={2}>{item.title}</Text>
+                      <View style={styles.priceTag}>
+                        <Text style={styles.priceText}>{item.price > 0 ? `${item.price.toLocaleString('vi-VN')} đ` : 'Miễn phí'}</Text>
+                      </View>
+                    </View>
+                  </ImageBackground>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* SECTION 3: CÁC KHÓA GIÃN CƠ */}
+        <View style={{ marginBottom: 35 }}>
+          <SectionHeader
+            title="Các Khóa giãn cơ"
+            onSeeAll={() => router.push({
+              pathname: '/(course)/course-list',
+              params: { title: 'Các Khóa giãn cơ', type: 'relaxation' }
+            })}
+          />
+          {loadingRelaxation && !refreshing ? (
+            <ActivityIndicator size="small" color="#111" style={{ marginVertical: 40 }} />
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll} contentContainerStyle={{ paddingRight: 20 }}>
+              {relaxCoursesToUse.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.courseCard}
+                  activeOpacity={0.9}
+                  onPress={() => router.push({ pathname: "/(course)/relaxation-detail", params: { id: item.id, title: item.title, price: item.price, img_url: item.img_url, isBought: isSubscriber ? 'true' : 'false', courseLevel: item.level } })}
+                >
+                  <ImageBackground source={{ uri: transformMediaUrl(item.img_url) || 'https://via.placeholder.com/400' }} style={styles.courseBg} imageStyle={{ borderRadius: 28 }}>
+                    <View style={styles.overlay} />
+
+                    <View style={styles.courseTop}>
+                      <View style={styles.levelBadge}>
+                        <Ionicons name="flash" size={14} color="#111" />
+                        <Text style={styles.levelText}>{getCourseLevelLabel(item.level)}</Text>
                       </View>
                       <View style={styles.playBtn}><Ionicons name="play" size={16} color="#111" style={{ marginLeft: 2 }} /></View>
                     </View>
@@ -149,8 +211,8 @@ export default function HomeScreen() {
 
         {/* SECTION 2: BÀI TẬP GỢI Ý */}
         <View style={{ marginTop: 35 }}>
-          <SectionHeader 
-            title="Gợi Ý Cho Bạn" 
+          <SectionHeader
+            title="Gợi Ý Cho Bạn"
             onSeeAll={() => router.push('/(exercise)/exercise-list')}
           />
           <View style={styles.verticalList}>
@@ -164,7 +226,7 @@ export default function HomeScreen() {
                   activeOpacity={0.8}
                   onPress={() => router.push({ pathname: "/(exercise)/exercise-detail", params: { id: item.id } })}
                 >
-                  <Image source={{ uri: item.img_list?.[0] }} style={styles.exImg} />
+                  <Image source={{ uri: transformMediaUrl(item.img_list?.[0]) || 'https://via.placeholder.com/200' }} style={styles.exImg} />
                   <View style={styles.exInfo}>
                     <Text style={styles.exTitle} numberOfLines={1}>{item.title}</Text>
 

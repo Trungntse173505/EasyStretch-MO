@@ -6,13 +6,33 @@ import { scheduleStationNotifications } from "@/utils/stationNotificationHelper"
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, memo } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View, Alert, Modal, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Notifications from 'expo-notifications';
 import { useOTP } from "@/hooks/auth/useOTP";
 import AuthInput from "../components/AuthInput";
 import VipUpgradePopup from "../VipUpgradePopup";
+
+// ─── Hạn chế: MenuItem định nghĩa ngoài component + React.memo ──────────────────
+const MenuItem = memo(({ icon, label, isSwitch = false, onPress, value = false, onToggle }: any) => (
+  <TouchableOpacity style={styles.menuItem} onPress={isSwitch ? () => onToggle(!value) : onPress} activeOpacity={0.7}>
+    <View style={styles.menuLeft}>
+      <View style={styles.iconWrapper}><Ionicons name={icon} size={20} color="#111" /></View>
+      <Text style={styles.menuText}>{label}</Text>
+    </View>
+    {isSwitch ? (
+      <Switch
+        trackColor={{ false: "#E2E8F0", true: "#D4F93D" }}
+        thumbColor="#FFF"
+        value={value}
+        onValueChange={onToggle}
+      />
+    ) : (
+      <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+    )}
+  </TouchableOpacity>
+));
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -32,7 +52,7 @@ export default function ProfileScreen() {
 
   const isVip = user?.is_subscriber === "active";
 
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await authApi.getInfo();
@@ -46,13 +66,12 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadMasterToggle = async () => {
+  const loadMasterToggle = useCallback(async () => {
     const val = await AsyncStorage.getItem("MASTER_NOTI_ENABLED");
-    if (val === "false") setMasterNotiEnabled(false);
-    else setMasterNotiEnabled(true);
-  };
+    setMasterNotiEnabled(val !== "false");
+  }, []);
 
   useEffect(() => {
     loadUserData();
@@ -138,24 +157,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const MenuItem = ({ icon, label, isSwitch = false, onPress, value = false, onToggle }: any) => (
-    <TouchableOpacity style={styles.menuItem} onPress={isSwitch ? () => toggleMasterNoti(!value) : onPress} activeOpacity={0.7}>
-      <View style={styles.menuLeft}>
-        <View style={styles.iconWrapper}><Ionicons name={icon} size={20} color="#111" /></View>
-        <Text style={styles.menuText}>{label}</Text>
-      </View>
-      {isSwitch ? (
-        <Switch 
-          trackColor={{ false: "#E2E8F0", true: "#D4F93D" }} 
-          thumbColor="#FFF" 
-          value={value} 
-          onValueChange={(val) => toggleMasterNoti(val)}
-        />
-      ) : (
-        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-      )}
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -205,15 +206,13 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <MenuItem icon="person" label="Chỉnh sửa hồ sơ" onPress={() => router.push("/(info)/personalInfo")} />
           <View style={styles.divider} />
-          <MenuItem 
-            icon="notifications" 
-            label="Thông báo hệ thống" 
-            isSwitch 
-            value={masterNotiEnabled} 
-            onPress={() => toggleMasterNoti(!masterNotiEnabled)} // Fallback in case they tap line instead of switch
+          <MenuItem
+            icon="notifications"
+            label="Thông báo hệ thống"
+            isSwitch
+            value={masterNotiEnabled}
+            onToggle={toggleMasterNoti}
           />
-          {/* Sửa <Switch> không nhận event onPress từ container cha nếu đang focus */}
-          {/* Cần update MenuItem cho chuẩn */}
         </View>
 
         <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Bảo mật & Cài đặt</Text>

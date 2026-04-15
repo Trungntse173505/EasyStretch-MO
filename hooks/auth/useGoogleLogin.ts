@@ -34,7 +34,7 @@ export const useGoogleLogin = () => {
             const userInfo = await GoogleSignin.signIn();
 
             // Bước 2: Lấy token Google
-            const idToken = userInfo?.data?.idToken || userInfo?.idToken;
+            const idToken = (userInfo as any)?.data?.idToken ?? (userInfo as any)?.idToken;
 
             if (!idToken) {
                 console.log("Cấu trúc userInfo bị thiếu token:", JSON.stringify(userInfo, null, 2));
@@ -56,7 +56,7 @@ export const useGoogleLogin = () => {
                 // 1. Lưu Token vào AsyncStorage
                 await AsyncStorage.setItem("ACCESS_TOKEN", token);
 
-                let userToSave = supabaseData.user;
+                let userToSave: any = supabaseData.user;
                 let hasProfile = false;
 
                 // 2. Gọi api lấy thông tin User (Giống hệt bên useLogin)

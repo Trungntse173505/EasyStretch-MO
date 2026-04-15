@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { transformMediaUrl } from '@/utils/mediaUtils';
+import { useVideoPlayer, VideoView, createVideoPlayer } from 'expo-video';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import YoutubePlayer from 'react-native-youtube-iframe';
@@ -13,8 +15,10 @@ const formatDuration = (s: number) => {
 };
 
 const getYouTubeID = (url: any) => {
-  if (!url || typeof url !== 'string') return null;
-  const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+  if (!url) return null;
+  const urlStr = Array.isArray(url) ? url[0] : url;
+  if (typeof urlStr !== 'string') return null;
+  const match = urlStr.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
@@ -26,7 +30,114 @@ export default function CoursePlayerScreen() {
   const [activeKey, setActiveKey] = useState<string | null>(null); 
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null); // State mới để lưu thông báo lỗi
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [activeStatus, setActiveStatus] = useState<string>('idle');
+  const [activeWeek, setActiveWeek] = useState<number>(1);
+
+  // Pool quản lý các đối tượng player
+  const playersRef = useRef<Record<string, any>>({});
+
+  // Chuyển đổi course sang danh sách bài tập phẳng
+  const allExercises = useMemo(() => {
+    if (!course?.course_days) return [];
+    const list: any[] = [];
+    course.course_days.forEach((day: any) => {
+      if (day.course_day_exercises) {
+        const sorted = [...day.course_day_exercises].sort((a, b) => a.order_index - b.order_index);
+        sorted.forEach((item: any) => {
+          list.push({
+            ...item.exercises,
+            dayId: day.id,
+            orderIndex: item.order_index,
+            uniqueKey: `${day.id}-${item.exercises.id}-${item.order_index}`
+          });
+        });
+      }
+    });
+    return list;
+  }, [course]);
+  
+  // Lấy danh sách các tuần duy nhất có trong khóa học
+  const uniqueWeeks = useMemo(() => {
+    if (!course?.course_days) return [];
+    const weeks = course.course_days.map((d: any) => d.week_number).filter((w: any) => w != null);
+    return Array.from(new Set(weeks)).sort((a: any, b: any) => a - b);
+  }, [course]);
+
+  const currentIndex = allExercises.findIndex(ex => ex.uniqueKey === activeKey);
+
+  const getOrCreatePlayer = useCallback((ex: any) => {
+    if (!ex) return null;
+    const key = ex.uniqueKey;
+    if (playersRef.current[key]) return playersRef.current[key];
+
+    const url = Array.isArray(ex.video_url) ? ex.video_url[0] : ex.video_url;
+    const vId = getYouTubeID(url);
+
+    if (!vId && url) {
+        const p = createVideoPlayer(transformMediaUrl(url, 'video') || '');
+        p.loop = true;
+        p.bufferOptions = {
+            preferredForwardBufferDuration: 30, // Tăng lên 30s cho Cloudinary phát mượt
+            maxBufferBytes: 50 * 1024 * 1024,   // Tăng giới hạn lên 50MB
+        };
+        playersRef.current[key] = p;
+        p.pause();
+        p.muted = true; // Câm tiếng mặc định cho video tải trước
+        return p;
+    }
+    return null;
+  }, []);
+
+  // Dọn dẹp player cũ khi chuyển bài (chỉ giữ duy nhất bài hiện tại)
+  useEffect(() => {
+    if (currentIndex === -1 || allExercises.length === 0) return;
+    
+    const activeKey = allExercises[currentIndex]?.uniqueKey;
+    Object.keys(playersRef.current).forEach(key => {
+        if (key !== activeKey) {
+            try { 
+                playersRef.current[key].pause();
+            } catch(e) {}
+            delete playersRef.current[key];
+        }
+    });
+  }, [currentIndex, allExercises]);
+
+  // Player hiện tại đang được chọn
+  const activePlayer = useMemo(() => {
+    if (activeEx) {
+        const exWithKey = allExercises[currentIndex];
+        return getOrCreatePlayer(exWithKey);
+    }
+    return null;
+  }, [activeEx, currentIndex, allExercises, getOrCreatePlayer]);
+
+  useEffect(() => {
+    if (activePlayer) {
+      // Đảm bảo chỉ activePlayer được bật tiếng và phát
+      activePlayer.muted = false;
+      setActiveStatus(activePlayer.status);
+      const sub = activePlayer.addListener('statusChange', (payload: any) => {
+        setActiveStatus(payload.status);
+      });
+      if (playing) activePlayer.play();
+      else activePlayer.pause();
+      return () => sub.remove();
+    } else {
+      setActiveStatus('idle');
+    }
+  }, [playing, activePlayer]);
+
+  useEffect(() => {
+    return () => {
+        // Giải phóng toàn bộ player khi rời màn hình, tránh memory leak
+        Object.values(playersRef.current).forEach((p: any) => {
+            try { p.pause(); } catch (_) {}
+        });
+        playersRef.current = {};
+    };
+  }, []);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -43,6 +154,7 @@ export default function CoursePlayerScreen() {
           if (firstExItem?.exercises) {
             setActiveEx(firstExItem.exercises);
             setActiveKey(`${data.course_days[0].id}-${firstExItem.exercises.id}-${firstExItem.order_index}`);
+            setActiveWeek(data.course_days[0].week_number || 1);
             setPlaying(false);
           }
         } else {
@@ -78,7 +190,11 @@ export default function CoursePlayerScreen() {
     </View>
   );
 
-  const videoId = getYouTubeID(activeEx?.video_url);
+
+
+  const videoUrlStr = Array.isArray(activeEx?.video_url) ? activeEx?.video_url[0] : activeEx?.video_url;
+  const videoId = getYouTubeID(videoUrlStr);
+  const isDirectVideo = !videoId && videoUrlStr;
 
   return (
     <View style={styles.container}>
@@ -86,8 +202,24 @@ export default function CoursePlayerScreen() {
       <View style={styles.videoArea}>
         {videoId ? (
           <YoutubePlayer height={260} play={playing} videoId={videoId} onChangeState={onStateChange} />
+        ) : isDirectVideo && activePlayer ? (
+          <View style={{ width: '100%', height: 260 }}>
+            <VideoView
+              style={{ width: '100%', height: 260 }}
+              player={activePlayer}
+              allowsFullscreen
+              allowsPictureInPicture
+            />
+            {(activeStatus === 'loading' || activeStatus === 'idle') && (
+              <ImageBackground source={{ uri: transformMediaUrl(activeEx?.img_list?.[0]) || 'https://via.placeholder.com/800x400' }} style={[styles.cover, StyleSheet.absoluteFill]}>
+                <View style={styles.overlay} />
+                <ActivityIndicator size="large" color="#D4F93D" />
+                <Text style={{color: '#FFF', fontWeight: '700', marginTop: 10}}>Đang tải video...</Text>
+              </ImageBackground>
+            )}
+          </View>
         ) : (
-          <ImageBackground source={{ uri: activeEx?.img_list?.[0] || 'https://via.placeholder.com/800x400' }} style={styles.cover}>
+          <ImageBackground source={{ uri: transformMediaUrl(activeEx?.img_list?.[0]) || 'https://via.placeholder.com/800x400' }} style={styles.cover}>
              <View style={styles.overlay} />
              <Text style={{color: '#FFF', fontWeight: '800'}}>Chưa có Video</Text>
           </ImageBackground>
@@ -118,7 +250,27 @@ export default function CoursePlayerScreen() {
           <Text style={styles.courseName}>{course.title}</Text>
           <Text style={styles.levelLabel}>Cấp độ: {course.level}</Text>
 
-          {course.course_days?.map((day: any) => (
+          {/* WEEK SELECTOR */}
+          <View style={styles.weekSelectorContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekScrollInner}>
+              {uniqueWeeks.map((week: any) => {
+                const isSelected = activeWeek === week;
+                return (
+                  <TouchableOpacity 
+                    key={week} 
+                    style={[styles.weekBtn, isSelected && styles.weekBtnActive]}
+                    onPress={() => setActiveWeek(week)}
+                  >
+                    <Text style={[styles.weekBtnText, isSelected && styles.weekBtnTextActive]}>
+                      Tuần {week}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {course.course_days?.filter((d: any) => d.week_number === activeWeek).map((day: any) => (
             <View key={day.id} style={styles.dayGroup}>
               <View style={styles.dayHeader}>
                 <Text style={styles.dayLabel}>Ngày {day.day_number}</Text>
@@ -138,7 +290,7 @@ export default function CoursePlayerScreen() {
                     onPress={() => { setActiveEx(ex); setActiveKey(k); setPlaying(true); }}
                     activeOpacity={0.8}
                   >
-                    <ImageBackground source={{ uri: ex.img_list?.[0] || 'https://via.placeholder.com/100' }} style={styles.thumb} imageStyle={{borderRadius: 12}}>
+                    <ImageBackground source={{ uri: transformMediaUrl(ex.img_list?.[0]) || 'https://via.placeholder.com/100' }} style={styles.thumb} imageStyle={{borderRadius: 12}}>
                       {isActive && <View style={styles.thumbOverlay}><Ionicons name={playing ? "volume-high" : "pause"} size={22} color="#D4F93D" /></View>}
                     </ImageBackground>
                     <View style={styles.exMeta}>
@@ -202,5 +354,40 @@ const styles = StyleSheet.create({
   exTitle: { fontSize: 16, fontWeight: '800', color: '#334155', marginBottom: 6, lineHeight: 22 },
   exTitleActive: { color: '#FFF' },
   exTime: { fontSize: 13, color: '#64748B', fontWeight: '700' },
-  exTimeActive: { color: '#CBD5E1' }
+  exTimeActive: { color: '#CBD5E1' },
+
+  // Week Selector Styles
+  weekSelectorContainer: { 
+    marginVertical: 20,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 20,
+    padding: 6,
+  },
+  weekScrollInner: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    gap: 8,
+  },
+  weekBtn: { 
+    paddingHorizontal: 20, 
+    paddingVertical: 10, 
+    borderRadius: 16, 
+    backgroundColor: 'transparent'
+  },
+  weekBtnActive: { 
+    backgroundColor: '#D4F93D',
+    shadowColor: '#D4F93D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4
+  },
+  weekBtnText: { 
+    fontSize: 14, 
+    fontWeight: '700', 
+    color: '#64748B' 
+  },
+  weekBtnTextActive: { 
+    color: '#1E293B' 
+  },
 });

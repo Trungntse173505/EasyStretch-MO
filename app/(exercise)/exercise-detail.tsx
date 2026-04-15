@@ -1,7 +1,9 @@
 import { useExerciseDetail } from '@/hooks/exercise/useExerciseDetail';
+import { transformMediaUrl } from '@/utils/mediaUtils';
 import { Ionicons } from '@expo/vector-icons';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { ActivityIndicator, ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import YoutubePlayer from 'react-native-youtube-iframe';
@@ -13,8 +15,10 @@ export default function ExerciseDetailScreen() {
   const [playing, setPlaying] = useState(false);
 
   const getYouTubeID = (url: any) => {
-    if (!url || typeof url !== 'string') return null;
-    const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+    if (!url) return null;
+    const urlStr = Array.isArray(url) ? url[0] : url;
+    if (typeof urlStr !== 'string') return null;
+    const match = urlStr.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
@@ -28,7 +32,25 @@ export default function ExerciseDetailScreen() {
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#111" /></View>;
   if (error || !exercise) return <View style={styles.center}><Text style={styles.errorText}>{error || 'Lỗi dữ liệu'}</Text></View>;
 
-  const videoId = getYouTubeID(exercise.video_url);
+  const videoUrlStr = Array.isArray(exercise.video_url) ? exercise.video_url[0] : exercise.video_url;
+  const videoId = getYouTubeID(videoUrlStr);
+  const isDirectVideo = !videoId && videoUrlStr;
+
+  const player = useVideoPlayer(playing && isDirectVideo ? (transformMediaUrl(videoUrlStr, 'video') ?? '') : '', (player) => {
+    player.loop = true;
+    player.bufferOptions = {
+      preferredForwardBufferDuration: 30, // Tối ưu cho Cloudinary
+      maxBufferBytes: 50 * 1024 * 1024,   // Giới hạn 50MB
+    };
+    if (playing) player.play();
+  });
+
+  useEffect(() => {
+    if (isDirectVideo) {
+      if (playing) player.play();
+      else player.pause();
+    }
+  }, [playing, player, isDirectVideo]);
 
   return (
     <View style={styles.container}>
@@ -39,8 +61,17 @@ export default function ExerciseDetailScreen() {
             <View style={styles.videoWrap}>
                <YoutubePlayer height={350} play={true} videoId={videoId} onChangeState={onStateChange} />
             </View>
+          ) : playing && isDirectVideo ? (
+            <View style={styles.videoWrap}>
+              <VideoView
+                style={{ width: '100%', height: 350 }}
+                player={player}
+                allowsFullscreen
+                allowsPictureInPicture
+              />
+            </View>
           ) : (
-            <ImageBackground source={{ uri: exercise.img_list?.[0] || 'https://via.placeholder.com/800x600' }} style={styles.cover}>
+            <ImageBackground source={{ uri: transformMediaUrl(exercise.img_list?.[0]) || 'https://via.placeholder.com/800x600' }} style={styles.cover}>
               <View style={styles.overlay} />
               <TouchableOpacity style={styles.playCenterBtn} onPress={() => setPlaying(true)} activeOpacity={0.85}>
                  <Ionicons name="play" size={36} color="#111" style={{marginLeft: 4}} />

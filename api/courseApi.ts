@@ -10,6 +10,7 @@ export interface Course {
   is_active: boolean;
   price: number;
   img_url: string;
+  type: string;
 }
 
 const courseApi = {
@@ -29,8 +30,13 @@ const courseApi = {
   checkPaymentStatus: async (courseId: string) => {
     // API này trả về status nên ta return toàn bộ response để check
     const response = await axiosClient.get(`/courses/payment/${courseId}`);
-    return response; 
-  }
+    return response;
+  },
+
+  getdetails: async (): Promise<Course[]> => {
+    const response = await axiosClient.get('/courses');
+    return response.data;
+  },
 };
 
 export default courseApi;
