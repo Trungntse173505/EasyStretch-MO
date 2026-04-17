@@ -19,12 +19,8 @@ export const useExercisesClient = () => {
         const user = JSON.parse(userInfoStr);
         isVip = user.is_subscriber === 'active';
       }
-      if (isVip) {
-        setExercises(data);
-      } else {
-        const freeExercises = data.filter((ex: Exercise) => ex.type === 'free');
-        setExercises(freeExercises);
-      }
+      const relaxationExercises = data.filter((ex: Exercise) => ex.type === 'relaxation');
+      setExercises(relaxationExercises);
 
     } catch (err: any) {
       console.log("Lỗi fetch exercises:", err);

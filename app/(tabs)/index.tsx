@@ -7,7 +7,7 @@ import { getCourseLevelLabel } from "@/utils/courseUtils";
 import { transformMediaUrl } from "@/utils/mediaUtils";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, memo, useState } from "react";
+import React, { memo, useCallback, useState } from "react";
 import { ActivityIndicator, Image, ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -212,7 +212,7 @@ export default function HomeScreen() {
         {/* SECTION 2: BÀI TẬP GỢI Ý */}
         <View style={{ marginTop: 35 }}>
           <SectionHeader
-            title="Gợi Ý Cho Bạn"
+            title="Bài giãn cơ đơn"
             onSeeAll={() => router.push('/(exercise)/exercise-list')}
           />
           <View style={styles.verticalList}>
@@ -224,7 +224,16 @@ export default function HomeScreen() {
                   key={item.id}
                   style={styles.exCard}
                   activeOpacity={0.8}
-                  onPress={() => router.push({ pathname: "/(exercise)/exercise-detail", params: { id: item.id } })}
+                  onPress={() => {
+                    if (item.type === 'relaxation') {
+                      router.push({
+                        pathname: "/(course)/relaxation-player",
+                        params: { id: item.id, title: item.title, mode: 'single', isSingle: 'true', startIndex: '0' }
+                      });
+                    } else {
+                      router.push({ pathname: "/(exercise)/exercise-detail", params: { id: item.id } });
+                    }
+                  }}
                 >
                   <Image source={{ uri: transformMediaUrl(item.img_list?.[0]) || 'https://via.placeholder.com/200' }} style={styles.exImg} />
                   <View style={styles.exInfo}>

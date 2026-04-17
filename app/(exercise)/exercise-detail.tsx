@@ -29,20 +29,19 @@ export default function ExerciseDetailScreen() {
     }
   }, []);
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#111" /></View>;
-  if (error || !exercise) return <View style={styles.center}><Text style={styles.errorText}>{error || 'Lỗi dữ liệu'}</Text></View>;
-
-  const videoUrlStr = Array.isArray(exercise.video_url) ? exercise.video_url[0] : exercise.video_url;
+  const videoUrlStr = exercise?.video_url ? (Array.isArray(exercise.video_url) ? exercise.video_url[0] : exercise.video_url) : '';
   const videoId = getYouTubeID(videoUrlStr);
-  const isDirectVideo = !videoId && videoUrlStr;
+  const isDirectVideo = !videoId && !!videoUrlStr;
 
-  const player = useVideoPlayer(playing && isDirectVideo ? (transformMediaUrl(videoUrlStr, 'video') ?? '') : '', (player) => {
-    player.loop = true;
-    player.bufferOptions = {
+  const playerUrl = playing && isDirectVideo ? (transformMediaUrl(videoUrlStr, 'video') ?? '') : '';
+
+  const player = useVideoPlayer(playerUrl, (p) => {
+    p.loop = true;
+    p.bufferOptions = {
       preferredForwardBufferDuration: 30, // Tối ưu cho Cloudinary
       maxBufferBytes: 50 * 1024 * 1024,   // Giới hạn 50MB
     };
-    if (playing) player.play();
+    if (playing) p.play();
   });
 
   useEffect(() => {
@@ -51,6 +50,9 @@ export default function ExerciseDetailScreen() {
       else player.pause();
     }
   }, [playing, player, isDirectVideo]);
+
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#111" /></View>;
+  if (error || !exercise) return <View style={styles.center}><Text style={styles.errorText}>{error || 'Lỗi dữ liệu'}</Text></View>;
 
   return (
     <View style={styles.container}>

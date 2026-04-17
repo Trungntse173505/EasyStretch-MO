@@ -3,8 +3,8 @@ import { transformMediaUrl } from '@/utils/mediaUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import axiosClient from '../../api/axiosClient';
 
 const formatDuration = (s: number) => {
@@ -15,6 +15,7 @@ const formatDuration = (s: number) => {
 
 export default function RelaxationDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id, title, img_url } = useLocalSearchParams();
   const { exercises: allExercises, loading: loadingEx } = useExercisesClient();
   const [courseData, setCourseData] = useState<any>(null);
@@ -142,7 +143,7 @@ export default function RelaxationDetailScreen() {
 
       {/* FIXED BOTTOM ACTION */}
       {!isLoading && mappedExercises.length > 0 && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <TouchableOpacity 
             style={styles.playButton} 
             activeOpacity={0.9} 
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
   dayTitle: { fontSize: 16, fontWeight: '800', color: '#334155', marginBottom: 6 },
   dayMeta: { fontSize: 14, color: '#94A3B8', fontWeight: '600' },
 
-  bottomBar: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#FFF', paddingHorizontal: 24, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 34 : 24, shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 20, borderWidth: 1, borderColor: '#F8FAFC' },
+  bottomBar: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#FFF', paddingHorizontal: 24, paddingTop: 16, shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 20, borderWidth: 1, borderColor: '#F8FAFC' },
   playButton: { backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, borderRadius: 100, shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
   playButtonText: { color: '#FFF', fontSize: 17, fontWeight: '800' },
 });

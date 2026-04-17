@@ -1,15 +1,13 @@
 import authApi from "@/api/authApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
 import { useState } from "react";
 
 export const useUpdateInfo = () => {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
 
   const updateInfo = async (form: any) => {
-    if (loading) return;
+    if (loading) return false;
     try {
       setApiError("");
       setLoading(true);
@@ -25,8 +23,9 @@ export const useUpdateInfo = () => {
       
       if (res.data?.success) {
         await AsyncStorage.setItem("USER_INFO", JSON.stringify(res.data.data));
-        router.replace("/(tabs)"); 
+        return true; 
       }
+      return false;
     } catch (e: any) {
       console.error("LỖI UPDATE:", e.response?.data || e.message);
       
@@ -35,6 +34,7 @@ export const useUpdateInfo = () => {
       } else {
         setApiError(e.response?.data?.message || "Cập nhật thất bại.");
       }
+      return false;
     } finally {
       setLoading(false);
     }

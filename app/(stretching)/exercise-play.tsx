@@ -16,6 +16,8 @@ import { useMissions } from "@/hooks/mission/useMissions";
 import { transformMediaUrl } from "@/utils/mediaUtils";
 import { useVideoPlayer, VideoView } from 'expo-video';
 import YoutubePlayer from "react-native-youtube-iframe";
+import * as Speech from 'expo-speech';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ExercisePlayScreen() {
   const router = useRouter();
@@ -100,6 +102,52 @@ export default function ExercisePlayScreen() {
   const [videoStatus, setVideoStatus] = useState<string>('idle');
   const isFirstPlay = useRef(true); 
 
+  // ---- Image Animation States (dùng khi không có video) ----
+  const [currentImageUri, setCurrentImageUri] = useState<string>(params.img_url || '');
+  const animRef = useRef<{ cancelled: boolean; timeout?: NodeJS.Timeout }>({ cancelled: false });
+  
+  const activeEx = useMemo<any>(() => {
+    return allExercises.find(ex => ex.id === params.exercise_id);
+  }, [allExercises, params.exercise_id]);
+
+  useEffect(() => {
+    if (params.img_url && !currentImageUri) {
+      setCurrentImageUri(params.img_url);
+    }
+  }, [params.img_url]);
+
+  // ---- Voice Coach Setup ----
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const playIntro = async () => {
+      const val = await AsyncStorage.getItem('VOICE_COACH');
+      const voiceOn = val !== 'false';
+      if (!active) return;
+      setIsVoiceEnabled(voiceOn);
+      
+      if (voiceOn && params.description) {
+        Speech.stop();
+        Speech.speak(params.description, { language: 'vi-VN', rate: 0.95 });
+      }
+    };
+    playIntro();
+    return () => {
+      active = false;
+      Speech.stop();
+    };
+  }, [params.description]);
+
+  const toggleVoice = () => {
+    setIsVoiceEnabled(prev => {
+      const next = !prev;
+      AsyncStorage.setItem('VOICE_COACH', next ? 'true' : 'false');
+      if (!next) Speech.stop();
+      return next;
+    });
+  };
+
   // Sync direct video playback with isRunning
   useEffect(() => {
     if (isDirectVideo) {
@@ -138,6 +186,63 @@ export default function ExercisePlayScreen() {
       }
     }
   }, [isRunning, hasVideo, hasStarted, videoReady]);
+
+  // Image Animation Loop (dùng time_line)
+  useEffect(() => {
+    let rawTimeLine = activeEx?.time_line;
+    if (!isRunning || !rawTimeLine || hasVideo || isDirectVideo) return;
+
+    if (typeof rawTimeLine === 'string') {
+      try {
+        rawTimeLine = JSON.parse(rawTimeLine);
+      } catch (error) {
+        rawTimeLine = [];
+      }
+    }
+
+    if (!Array.isArray(rawTimeLine) || rawTimeLine.length === 0) return;
+
+    const ctrl: { cancelled: boolean; timeout?: ReturnType<typeof setTimeout> } = { cancelled: false };
+    animRef.current = ctrl;
+
+    const runLoop = async () => {
+      let i = 0;
+      while (!ctrl.cancelled) {
+        let frame = rawTimeLine[i];
+
+        if (typeof frame === 'string') {
+          try { frame = JSON.parse(frame); } catch (e) { }
+        }
+
+        if (frame && typeof frame === 'object') {
+          let rawIdx = frame.imageIndex !== undefined ? frame.imageIndex : frame.image_index;
+          let idx = parseInt(String(rawIdx || '0'), 10);
+          if (isNaN(idx)) idx = 0;
+
+          const uri = activeEx?.img_list?.[idx];
+          if (uri) setCurrentImageUri(uri);
+
+          await new Promise<void>(resolve => {
+            const duration = Number(frame.duration) || 1000;
+            ctrl.timeout = setTimeout(resolve, duration);
+          });
+        } else {
+          await new Promise<void>(resolve => {
+            ctrl.timeout = setTimeout(resolve, 1000);
+          });
+        }
+
+        i = (i + 1) % rawTimeLine.length;
+      }
+    };
+
+    runLoop();
+    return () => {
+      ctrl.cancelled = true;
+      if (ctrl.timeout) clearTimeout(ctrl.timeout);
+    };
+  }, [isRunning, activeEx, hasVideo, isDirectVideo]);
+
 
   // Xác định trạng thái "xong" khi timer = 0
   useEffect(() => {
@@ -235,16 +340,34 @@ export default function ExercisePlayScreen() {
     outputRange: ['0%', '100%'],
   });
 
+  const preloadedImages = useMemo(() => {
+    const list = activeEx?.img_list || [];
+    const allUrls = [...list, params.img_url].filter(Boolean);
+    const transformedUrls = allUrls.map((u: any) => transformMediaUrl(u) || 'https://via.placeholder.com/600');
+    return Array.from(new Set(transformedUrls));
+  }, [activeEx?.img_list, params.img_url]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Vùng ẩn dùng tải trước toàn bộ ảnh vào cache */}
+      <View style={{ position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' }}>
+        {preloadedImages.map((uri, index) => <Image key={`preload-ex-${index}-${uri}`} source={{ uri }} />)}
+      </View>
+
       {/* HEADER (floating) */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
           <Ionicons name="close" size={24} color="#FFF" />
         </TouchableOpacity>
-        <View style={styles.pointBadge}>
-          <Ionicons name="flash" size={14} color="#111" />
-          <Text style={styles.pointBadgeText}>+{params.point} ĐIỂM</Text>
+        
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity style={styles.backBtn} onPress={toggleVoice} activeOpacity={0.8}>
+            <Ionicons name={isVoiceEnabled ? "volume-medium" : "volume-mute"} size={20} color={isVoiceEnabled ? "#D4F93D" : "#FFF"} />
+          </TouchableOpacity>
+          <View style={styles.pointBadge}>
+            <Ionicons name="flash" size={14} color="#111" />
+            <Text style={styles.pointBadgeText}>+{params.point} ĐIỂM</Text>
+          </View>
         </View>
       </View>
 
@@ -292,8 +415,8 @@ export default function ExercisePlayScreen() {
               <Image source={{ uri: transformMediaUrl(params.img_url) || 'https://via.placeholder.com/200' }} style={[styles.media, StyleSheet.absoluteFill]} resizeMode="cover" />
             )}
           </View>
-        ) : (params.img_url || !hasStarted) ? (
-          <Image source={{ uri: transformMediaUrl(params.img_url) }} style={styles.media} resizeMode="cover" />
+        ) : (currentImageUri || params.img_url || !hasStarted) ? (
+          <Image source={{ uri: transformMediaUrl(currentImageUri || params.img_url) }} style={styles.media} resizeMode="contain" />
         ) : (
           <View style={[styles.media, styles.mediaplaceHolder]}>
             <Ionicons name="fitness" size={80} color="#D4F93D" />

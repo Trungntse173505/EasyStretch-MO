@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerLeft: { flex: 1, alignItems: 'flex-start' },
-  headerCenter: { flex: 4, alignItems: 'center', marginLeft: 50 },
+  headerCenter: { flex: 4, alignItems: 'center', marginLeft: 10 },
   headerRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10 },
 
   backBtn: {
@@ -233,9 +233,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  weekContainer: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
+  weekContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
 

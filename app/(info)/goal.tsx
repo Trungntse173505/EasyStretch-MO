@@ -41,7 +41,10 @@ export default function GoalScreen() {
     };
 
     console.log("📨 Gửi API:", payload);
-    await updateInfo(payload);
+    const success = await updateInfo(payload);
+    if (success) {
+      router.replace("/(tabs)");
+    }
   };
 
   return (

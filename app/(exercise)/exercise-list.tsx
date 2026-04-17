@@ -36,7 +36,16 @@ export default function ExerciseListScreen() {
     <TouchableOpacity
       style={styles.exCard}
       activeOpacity={0.8}
-      onPress={() => router.push({ pathname: "/(exercise)/exercise-detail", params: { id: item.id } })}
+      onPress={() => {
+        if (item.type === 'relaxation') {
+          router.push({
+            pathname: "/(course)/relaxation-player",
+            params: { id: item.id, title: item.title, mode: 'single', isSingle: 'true', startIndex: '0' }
+          });
+        } else {
+          router.push({ pathname: "/(exercise)/exercise-detail", params: { id: item.id } });
+        }
+      }}
     >
       <Image source={{ uri: transformMediaUrl(item.img_list?.[0]) || 'https://via.placeholder.com/200' }} style={styles.exImg} />
       <View style={styles.exInfo}>

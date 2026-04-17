@@ -56,8 +56,8 @@ export default function PersonalInfoScreen() {
   useEffect(() => { fetchUserData(); }, []);
 
   const handleSave = async () => {
-    await updateInfo(editForm);
-    if (!apiError) {
+    const success = await updateInfo(editForm);
+    if (success) {
       setIsEditing(false);
       fetchUserData();
     }

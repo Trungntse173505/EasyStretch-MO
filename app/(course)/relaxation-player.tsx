@@ -1,4 +1,3 @@
-import exerciseApi from '../../api/exerciseApi';
 import { useExercisesClient } from '@/hooks/exercise/useExercisesClient';
 import { transformMediaUrl } from '@/utils/mediaUtils';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +15,9 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import axiosClient from '../../api/axiosClient';
+import exerciseApi from '../../api/exerciseApi';
+import * as Speech from 'expo-speech';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -67,8 +69,8 @@ function CircleTimer({ total, current }: { total: number; current: number }) {
 export default function RelaxationPlayerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id, title, startIndex: startIndexParam, mode } = useLocalSearchParams<{
-    id: string; title: string; startIndex: string; mode: string;
+  const { id, title, startIndex: startIndexParam, mode, isSingle } = useLocalSearchParams<{
+    id: string; title: string; startIndex: string; mode: string; isSingle?: string;
   }>();
 
   const isWorkoutMode = mode === 'workout';
@@ -93,8 +95,41 @@ export default function RelaxationPlayerScreen() {
 
   // Tab state removed - show all content directly
 
+  // Voice Coach
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem('VOICE_COACH').then(val => {
+      if (active && val === 'false') setIsVoiceEnabled(false);
+    });
+    return () => { active = false; Speech.stop(); };
+  }, []);
+
+  const toggleVoice = () => {
+    setIsVoiceEnabled(prev => {
+      const next = !prev;
+      AsyncStorage.setItem('VOICE_COACH', next ? 'true' : 'false');
+      if (!next) Speech.stop();
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (loadingDetail || !activeEx) return;
+    const desc = activeExDetail?.description || activeEx?.description;
+    if (isVoiceEnabled && desc) {
+      Speech.stop();
+      Speech.speak(desc, { language: 'vi-VN', rate: 0.95 });
+    }
+  }, [loadingDetail, activeEx?.id]);
+
   // ── 1. Fetch course data ────────────────────
   useEffect(() => {
+    if (isSingle === 'true') {
+      setLoadingCourse(false);
+      return;
+    }
     const fetchCourse = async () => {
       try {
         if (!id) return;
@@ -108,10 +143,15 @@ export default function RelaxationPlayerScreen() {
       }
     };
     fetchCourse();
-  }, [id]);
+  }, [id, isSingle]);
 
   // ── 2. Map exercises ────────────────────────
   const mappedExercises = useMemo(() => {
+    if (isSingle === 'true') {
+      const match = allExercises.find(ex => ex.id === id);
+      return match ? [match] : [];
+    }
+
     if (!courseData?.course_days || !allExercises.length) return [];
     const list: any[] = [];
     courseData.course_days.forEach((day: any) => {
@@ -121,7 +161,7 @@ export default function RelaxationPlayerScreen() {
       });
     });
     return list.sort((a, b) => a.order_index - b.order_index);
-  }, [courseData, allExercises]);
+  }, [courseData, allExercises, id, isSingle]);
 
   const activeEx = mappedExercises[currentIndex];
 
@@ -150,7 +190,19 @@ export default function RelaxationPlayerScreen() {
 
   // ── 4. Animation loop (time_line) ───────────
   useEffect(() => {
-    if (!isPlaying || !activeExDetail?.time_line?.length) return;
+    let rawTimeLine = activeExDetail?.time_line;
+    if (!isPlaying || !rawTimeLine) return;
+
+    // Trường hợp time_line bị lưu ở định dạng chuỗi JSON trong DB
+    if (typeof rawTimeLine === 'string') {
+      try {
+        rawTimeLine = JSON.parse(rawTimeLine);
+      } catch (error) {
+        rawTimeLine = [];
+      }
+    }
+
+    if (!Array.isArray(rawTimeLine) || rawTimeLine.length === 0) return;
 
     const ctrl: { cancelled: boolean; timeout?: ReturnType<typeof setTimeout> } = { cancelled: false };
     animRef.current = ctrl;
@@ -158,13 +210,38 @@ export default function RelaxationPlayerScreen() {
     const runLoop = async () => {
       let i = 0;
       while (!ctrl.cancelled) {
-        const frame = activeExDetail.time_line[i];
-        const uri = activeExDetail.img_list?.[frame.imageIndex];
-        if (uri) setCurrentImageUri(uri);
-        await new Promise<void>(resolve => {
-          ctrl.timeout = setTimeout(resolve, frame.duration);
-        });
-        i = (i + 1) % activeExDetail.time_line.length;
+        let frame = rawTimeLine[i];
+
+        // Trường hợp từng phần tử trong mảng lại là chuỗi (do lỗi nhập liệu)
+        if (typeof frame === 'string') {
+          try {
+            frame = JSON.parse(frame);
+          } catch (e) { }
+        }
+
+        if (frame && typeof frame === 'object') {
+          // Ép kiểu chắc chắn sang số nguyên
+          let rawIdx = frame.imageIndex !== undefined ? frame.imageIndex : frame.image_index;
+          let idx = parseInt(String(rawIdx || '0'), 10);
+          if (isNaN(idx)) idx = 0;
+
+          const uri = activeExDetail.img_list?.[idx];
+          console.log(`[Relaxation Player] Đang hiện frame số ${i} - idx: ${idx} - uri: ${uri?.substring(0, 50)}...`);
+
+          if (uri) setCurrentImageUri(uri);
+
+          await new Promise<void>(resolve => {
+            const duration = Number(frame.duration) || 1000;
+            ctrl.timeout = setTimeout(resolve, duration);
+          });
+        } else {
+          // Bỏ qua dự phòng 1s nếu frame hỏng
+          await new Promise<void>(resolve => {
+            ctrl.timeout = setTimeout(resolve, 1000);
+          });
+        }
+
+        i = (i + 1) % rawTimeLine.length;
       }
     };
 
@@ -200,6 +277,16 @@ export default function RelaxationPlayerScreen() {
 
   const adjustTime = (d: number) => setTimeLeft(p => Math.max(0, p + d));
 
+  const activeTransformedUri = transformMediaUrl(currentImageUri || activeEx?.img_list?.[0]) || 'https://via.placeholder.com/600';
+
+  // Tải trước (preload) bằng cách render ẩn toàn bộ mảng ảnh, tránh nháy trắng chớp ảnh khi Cloudinary tải chậm
+  const preloadedImages = useMemo(() => {
+    const list = activeExDetail?.img_list || activeEx?.img_list || [];
+    const uniqueUris = Array.from(new Set(list)).map((u: any) => transformMediaUrl(u) || 'https://via.placeholder.com/600');
+    if (!uniqueUris.includes(activeTransformedUri)) uniqueUris.push(activeTransformedUri);
+    return uniqueUris;
+  }, [activeExDetail?.img_list, activeEx?.img_list, activeTransformedUri]);
+
   // ── Loading state ────────────────────────────
   if (loadingCourse || loadingEx || !activeEx) {
     return (
@@ -209,20 +296,26 @@ export default function RelaxationPlayerScreen() {
     );
   }
 
-  const imageUri = transformMediaUrl(currentImageUri || activeEx.img_list?.[0]) || 'https://via.placeholder.com/600';
-
   // ════════════════════════════════════════════
   //  WORKOUT MODE  (Ảnh 2)
   // ════════════════════════════════════════════
   if (isWorkoutMode) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
+        {/* Vùng ẩn dùng tải trước toàn bộ ảnh vào cache, triệt tiêu delay/flash trắng */}
+        <View style={{ position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' }}>
+          {preloadedImages.map((uri) => <Image key={`preload-workout-${uri}`} source={{ uri }} />)}
+        </View>
+
         {/* Full-screen animation image */}
         <View style={styles.workoutImageArea}>
+          <TouchableOpacity style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 20, padding: 8 }} onPress={toggleVoice}>
+            <Ionicons name={isVoiceEnabled ? "volume-medium" : "volume-mute"} size={26} color={isVoiceEnabled ? "#3B82F6" : "#475569"} />
+          </TouchableOpacity>
           {loadingDetail ? (
             <ActivityIndicator size="large" color="#3B82F6" style={{ flex: 1 }} />
           ) : (
-            <Image source={{ uri: imageUri }} style={styles.workoutImage} resizeMode="contain" />
+            <Image source={{ uri: activeTransformedUri }} style={styles.workoutImage} resizeMode="contain" />
           )}
         </View>
 
@@ -263,22 +356,29 @@ export default function RelaxationPlayerScreen() {
   // ════════════════════════════════════════════
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* Vùng ẩn dùng tải trước toàn bộ ảnh vào cache, triệt tiêu delay/flash trắng */}
+      <View style={{ position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' }}>
+        {preloadedImages.map((uri) => <Image key={`preload-single-${uri}`} source={{ uri }} />)}
+      </View>
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={26} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{activeEx.title}</Text>
-        <View style={{ width: 26 }} />
+        <TouchableOpacity onPress={toggleVoice}>
+          <Ionicons name={isVoiceEnabled ? "volume-medium" : "volume-mute"} size={26} color={isVoiceEnabled ? "#3B82F6" : "#64748B"} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 160 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 200 }}>
         {/* Animation image */}
         <View style={styles.singleImageArea}>
           {loadingDetail ? (
             <ActivityIndicator size="large" color="#3B82F6" />
           ) : (
-            <Image source={{ uri: imageUri }} style={styles.singleImage} resizeMode="contain" />
+            <Image source={{ uri: activeTransformedUri }} style={styles.singleImage} resizeMode="contain" />
           )}
         </View>
 
