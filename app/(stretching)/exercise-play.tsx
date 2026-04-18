@@ -454,7 +454,7 @@ export default function ExercisePlayScreen() {
         {!isFinished ? (
           <View style={styles.controls}>
             <TouchableOpacity style={styles.resetBtn} onPress={handleReset} activeOpacity={0.8}>
-              <Ionicons name="refresh" size={22} color="#FFF" />
+              <Ionicons name="refresh" size={22} color="#111" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.mainBtn}
@@ -489,7 +489,7 @@ export default function ExercisePlayScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
 
   mediaContainer: { height: 260, position: 'relative' },
   media: { width: '100%', height: '100%' },
-  mediaplaceHolder: { backgroundColor: '#161616', justifyContent: 'center', alignItems: 'center' },
+  mediaplaceHolder: { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   mediaOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.15)' },
   watchHint: {
     position: 'absolute', bottom: 14, left: 0, right: 0,
@@ -521,14 +521,14 @@ const styles = StyleSheet.create({
 
   stationBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(212,249,61,0.1)', borderRadius: 12,
+    backgroundColor: 'rgba(212,249,61,0.2)', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 8, marginBottom: 10,
   },
   stationBadgeIcon: { fontSize: 18 },
-  stationBadgeName: { color: '#D4F93D', fontWeight: '800', fontSize: 14 },
+  stationBadgeName: { color: '#111', fontWeight: '800', fontSize: 14 },
 
   exerciseTitle: {
-    fontSize: 22, fontWeight: '900', color: '#FFF',
+    fontSize: 22, fontWeight: '900', color: '#111',
     textAlign: 'center', marginBottom: 6, letterSpacing: -0.5,
   },
   exerciseDesc: {
@@ -539,15 +539,15 @@ const styles = StyleSheet.create({
   // Timer UI
   timerCircle: {
     width: 130, height: 130, borderRadius: 65,
-    borderWidth: 4, borderColor: '#D4F93D', backgroundColor: '#161616',
+    borderWidth: 4, borderColor: '#D4F93D', backgroundColor: '#FFF',
     justifyContent: 'center', alignItems: 'center', marginBottom: 18,
     shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 18, elevation: 10,
   },
-  timerText: { fontSize: 32, fontWeight: '900', color: '#FFF', letterSpacing: 1 },
+  timerText: { fontSize: 32, fontWeight: '900', color: '#111', letterSpacing: 1 },
   timerLabel: { fontSize: 11, color: '#64748B', fontWeight: '700', marginTop: 4, textTransform: 'uppercase' },
 
   progressBg: {
-    width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.08)',
+    width: '100%', height: 6, backgroundColor: 'rgba(0,0,0,0.06)',
     borderRadius: 3, overflow: 'hidden', marginBottom: 6,
   },
   progressFill: { height: '100%', backgroundColor: '#D4F93D', borderRadius: 3 },
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24 },
   resetBtn: {
     width: 56, height: 56, borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     justifyContent: 'center', alignItems: 'center',
   },
   mainBtn: {

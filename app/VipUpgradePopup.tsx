@@ -26,19 +26,19 @@ export default function VipUpgradePopup({ visible, onClose }: VipProps) {
   };
 
   const handleWebUpgrade = async () => {
-    const websiteUrl = "myfitness-web.com";
+    const websiteUrl = "https://www.easystretch.click";
     Alert.alert(
-      "Nâng cấp Đặc Quyền VIP", 
+      "Nâng cấp Đặc Quyền VIP",
       `Để mở khóa toàn bộ tính năng cao cấp, vui lòng truy cập website:\n${websiteUrl}\nđể đăng ký tài khoản PRO.`,
       [
         { text: "Đóng", style: "cancel" },
-        { 
-          text: "Sao chép Website", 
+        {
+          text: "Sao chép Website",
           onPress: async () => {
             await Clipboard.setStringAsync(websiteUrl);
             Alert.alert("Thành công", "Đã sao chép địa chỉ website. Bạn hãy mở trình duyệt (Safari/Chrome) và dán vào nhé!");
-            handleClose(); 
-          } 
+            handleClose();
+          }
         }
       ]
     );

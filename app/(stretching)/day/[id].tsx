@@ -90,7 +90,7 @@ export default function DayMissionScreen() {
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color="#111" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Nhiệm Vụ Hôm Nay</Text>
         <View style={{ width: 44 }} />
@@ -192,7 +192,7 @@ export default function DayMissionScreen() {
                       isMissed && styles.exerciseCardMissed,
                     ]}
                     activeOpacity={isLocked || isDone || isMissed || isFuture ? 1 : 0.82}
-                    onPress={() => handlePlayExercise(exercise)}
+                    onPress={() => !isMissed && handlePlayExercise(exercise)}
                   >
                     {/* Image */}
                     <View style={[styles.imgWrap, isLocked && styles.imgWrapLocked]}>
@@ -208,12 +208,11 @@ export default function DayMissionScreen() {
                         styles.orderBadge,
                         isDone && styles.orderBadgeDone,
                         (isLocked || isFuture) && styles.orderBadgeLocked,
+                        isMissed && styles.orderBadgeMissed,
                       ]}>
                         {isDone
                           ? <Ionicons name="checkmark" size={12} color="#111" />
-                          : isMissed
-                            ? <Ionicons name="close" size={14} color="#FFF" />
-                            : (isLocked || isFuture)
+                          : (isLocked || isFuture)
                               ? <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.4)" />
                               : <Text style={styles.orderText}>{exercise.order}</Text>
                         }
@@ -276,10 +275,10 @@ export default function DayMissionScreen() {
                       {isDone
                         ? <Ionicons name="checkmark-circle" size={30} color="#D4F93D" />
                         : isMissed
-                          ? <Ionicons name="alert-circle" size={30} color="#EF4444" />
+                          ? <Ionicons name="alert-circle-outline" size={28} color="#CBD5E1" />
                           : (isLocked || isFuture)
-                            ? <Ionicons name="lock-closed" size={22} color="rgba(255,255,255,0.15)" />
-                            : <Ionicons name="play-circle-outline" size={30} color="rgba(255,255,255,0.3)" />
+                            ? <Ionicons name="lock-closed" size={22} color="rgba(0,0,0,0.1)" />
+                            : <Ionicons name="play-circle-outline" size={30} color="rgba(0,0,0,0.15)" />
                       }
                     </View>
                   </TouchableOpacity>
@@ -296,38 +295,38 @@ export default function DayMissionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingVertical: 15,
   },
   backBtn: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFF' },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#111' },
 
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  loadingText: { color: '#A1A1AA', fontSize: 16, fontWeight: '600' },
+  loadingText: { color: '#64748B', fontSize: 16, fontWeight: '600' },
   errorText: { color: '#EF4444', fontSize: 15, fontWeight: '600', textAlign: 'center', paddingHorizontal: 40 },
 
   scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
 
   dateSection: { marginBottom: 22 },
   dateLabel: { fontSize: 13, color: '#64748B', fontWeight: '700', textTransform: 'capitalize', marginBottom: 6 },
-  missionTitle: { fontSize: 26, fontWeight: '900', color: '#FFF', lineHeight: 34, letterSpacing: -0.5, marginBottom: 6 },
-  missionDesc: { fontSize: 14, color: '#A1A1AA', lineHeight: 20, fontWeight: '500' },
+  missionTitle: { fontSize: 26, fontWeight: '900', color: '#111', lineHeight: 34, letterSpacing: -0.5, marginBottom: 6 },
+  missionDesc: { fontSize: 14, color: '#64748B', lineHeight: 20, fontWeight: '500' },
 
   // Progress
   progressCard: {
-    backgroundColor: '#161616', borderRadius: 24, padding: 22,
-    marginBottom: 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: '#F8FAFC', borderRadius: 24, padding: 22,
+    marginBottom: 28, borderWidth: 1, borderColor: '#F1F5F9',
   },
   progressCardDone: { borderColor: '#D4F93D', backgroundColor: 'rgba(212,249,61,0.04)' },
   progressTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
   progressLabel: { fontSize: 11, color: '#64748B', fontWeight: '800', letterSpacing: 1, marginBottom: 6 },
-  progressPoints: { fontSize: 28, fontWeight: '900', color: '#FFF' },
+  progressPoints: { fontSize: 28, fontWeight: '900', color: '#111' },
   progressCircle: {
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: 'rgba(212,249,61,0.1)',
@@ -336,7 +335,7 @@ const styles = StyleSheet.create({
   },
   progressCircleText: { color: '#D4F93D', fontSize: 14, fontWeight: '900', lineHeight: 18 },
   progressCircleSub: { color: '#D4F93D', fontSize: 10, fontWeight: '700' },
-  progressBarBg: { height: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' },
+  progressBarBg: { height: 6, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 3, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: '#D4F93D', borderRadius: 3 },
   completeBadge: {
     marginTop: 14, backgroundColor: 'rgba(212,249,61,0.1)',
@@ -351,57 +350,59 @@ const styles = StyleSheet.create({
   // Exercise cards
   exerciseList: { gap: 14 },
   exerciseCard: {
-    backgroundColor: '#161616', borderRadius: 20, padding: 16,
+    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16,
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: '#F1F5F9',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3,
   },
   exerciseCardDone: { borderColor: 'rgba(212,249,61,0.25)', backgroundColor: 'rgba(212,249,61,0.03)' },
-  exerciseCardLocked: { opacity: 0.55 },
-  exerciseCardMissed: { borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.02)' },
+  exerciseCardLocked: { opacity: 0.6 },
+  exerciseCardMissed: { borderColor: '#F1F5F9', backgroundColor: '#F8FAFC' },
 
   imgWrap: { position: 'relative', marginRight: 14, flexShrink: 0 },
   imgWrapLocked: { opacity: 0.5 },
-  exerciseImg: { width: 76, height: 76, borderRadius: 16, backgroundColor: '#2A2A2A' },
+  exerciseImg: { width: 76, height: 76, borderRadius: 16, backgroundColor: '#F3F4F6' },
   imgPlaceholder: { justifyContent: 'center', alignItems: 'center' },
   orderBadge: {
     position: 'absolute', top: -7, left: -7,
     width: 22, height: 22, borderRadius: 11,
-    backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: '#0A0A0A',
+    backgroundColor: '#111', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#FFF',
   },
   orderBadgeDone: { backgroundColor: '#D4F93D' },
-  orderBadgeLocked: { backgroundColor: '#1E293B' },
+  orderBadgeLocked: { backgroundColor: '#E2E8F0' },
+  orderBadgeMissed: { backgroundColor: '#94A3B8' },
   orderText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
 
   exerciseInfo: { flex: 1, gap: 4 },
 
   mocRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  mocLabel: { fontSize: 12, color: '#D4F93D', fontWeight: '800', letterSpacing: 0.5 },
-  mocLabelLocked: { color: '#4B5563' },
-  mocLabelMissed: { color: '#EF4444' },
+  mocLabel: { fontSize: 12, color: '#111', fontWeight: '800', letterSpacing: 0.5 },
+  mocLabelLocked: { color: '#94A3B8' },
+  mocLabelMissed: { color: '#94A3B8' },
 
   missedBadge: { backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   missedBadgeText: { color: '#EF4444', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
 
   windowRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-  windowText: { fontSize: 11, color: '#4B5563', fontWeight: '700' },
-  windowTextActive: { color: '#D4F93D' },
+  windowText: { fontSize: 11, color: '#64748B', fontWeight: '700' },
+  windowTextActive: { color: '#22C55E' },
   activeDot: {
     width: 6, height: 6, borderRadius: 3,
     backgroundColor: '#22C55E', marginLeft: 2,
   },
 
-  exerciseTitle: { fontSize: 15, fontWeight: '800', color: '#FFF', lineHeight: 21 },
-  exerciseTitleDimmed: { color: '#4B5563' },
+  exerciseTitle: { fontSize: 15, fontWeight: '800', color: '#111', lineHeight: 21 },
+  exerciseTitleDimmed: { color: '#64748B' },
 
   metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 2 },
   metaChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+    backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
   },
   pointChip: { backgroundColor: 'rgba(212,249,61,0.08)' },
-  metaText: { fontSize: 11, color: '#A1A1AA', fontWeight: '700' },
-  muscleText: { fontSize: 11, color: '#64748B', fontWeight: '600', marginTop: 2 },
+  metaText: { fontSize: 11, color: '#64748B', fontWeight: '700' },
+  muscleText: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
 
   actionIcon: { paddingLeft: 10, flexShrink: 0 },
 });

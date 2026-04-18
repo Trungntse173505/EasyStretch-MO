@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl } from "react-native";
+import { ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ExploreScreen() {
@@ -30,8 +30,8 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#111" />}
       >
@@ -53,12 +53,12 @@ export default function ExploreScreen() {
             <View style={styles.bannerOverlay} />
             <View style={styles.bannerContent}>
               <View style={styles.badge}>
-                <Ionicons name="star" size={12} color="#FFF" style={{marginRight: 4}} />
-                <Text style={styles.badgeText}>Gợi ý cho bạn</Text>
+                <Ionicons name="star" size={12} color="#FFF" style={{ marginRight: 4 }} />
+                <Text style={styles.badgeText}>Thử thách</Text>
               </View>
-              <Text style={styles.bannerText}>Bài tập giãn cơ{"\n"}cho người mới</Text>
-              <TouchableOpacity 
-                style={styles.bannerBtn} 
+              <Text style={styles.bannerText}>Nhiệm vụ giãn cơ{"\n"}mỗi ngày</Text>
+              <TouchableOpacity
+                style={styles.bannerBtn}
                 activeOpacity={0.85}
                 onPress={() => router.push('/(stretching)')}
               >
@@ -71,10 +71,10 @@ export default function ExploreScreen() {
 
         {/* ĐIỀU HƯỚNG DINH DƯỠNG */}
         <View style={styles.sectionHeader}>
-           <Text style={styles.sectionTitle}>Dinh Dưỡng</Text>
-           <TouchableOpacity onPress={handlePressNutrition}>
-              <Text style={styles.seeAllText}>Chi tiết</Text>
-           </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Dinh Dưỡng</Text>
+          <TouchableOpacity onPress={handlePressNutrition}>
+            <Text style={styles.seeAllText}>Chi tiết</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -84,9 +84,9 @@ export default function ExploreScreen() {
         >
           <View style={styles.nutriContent}>
             <View style={styles.nutriHeader}>
-               <View style={styles.nutriIconBg}><Ionicons name="restaurant" size={22} color="#D4F93D" /></View>
-               <Text style={styles.nutriTitle}>Thực Đơn & Calo</Text>
-               <Ionicons name="arrow-forward-circle" size={32} color="#D4F93D" />
+              <View style={styles.nutriIconBg}><Ionicons name="restaurant" size={22} color="#D4F93D" /></View>
+              <Text style={styles.nutriTitle}>Thực Đơn & Calo</Text>
+              <Ionicons name="arrow-forward-circle" size={32} color="#D4F93D" />
             </View>
 
             <Text style={styles.nutriDesc}>Theo dõi năng lượng nạp vào và kiểm soát chế độ ăn khoa học cùng Chuyên gia AI.</Text>
@@ -95,19 +95,19 @@ export default function ExploreScreen() {
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>Protein</Text>
                 <View style={styles.statLineWrap}>
-                   <View style={[styles.statLine, {width: '60%', backgroundColor: '#8B5CF6'}]} />
+                  <View style={[styles.statLine, { width: '60%', backgroundColor: '#8B5CF6' }]} />
                 </View>
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>Carbs</Text>
                 <View style={styles.statLineWrap}>
-                   <View style={[styles.statLine, {width: '80%', backgroundColor: '#0EA5E9'}]} />
+                  <View style={[styles.statLine, { width: '80%', backgroundColor: '#0EA5E9' }]} />
                 </View>
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>Fat</Text>
                 <View style={styles.statLineWrap}>
-                   <View style={[styles.statLine, {width: '40%', backgroundColor: '#F59E0B'}]} />
+                  <View style={[styles.statLine, { width: '40%', backgroundColor: '#F59E0B' }]} />
                 </View>
               </View>
             </View>
@@ -123,7 +123,7 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FAFAFA" },
   scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
-  
+
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   headerTitle: { fontSize: 32, fontWeight: "900", color: "#111", letterSpacing: -0.5 },
   searchBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center' },
   badgeText: { color: '#FFF', fontWeight: '800', fontSize: 12 },
   bannerText: { color: "#fff", fontSize: 26, fontWeight: "900", marginBottom: 20, lineHeight: 34, letterSpacing: -0.5 },
-  bannerBtn: { backgroundColor: "#D4F93D", alignSelf: 'flex-start', paddingHorizontal: 20, paddingVertical: 14, borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: '#D4F93D', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  bannerBtn: { backgroundColor: "#D4F93D", alignSelf: 'flex-start', paddingHorizontal: 20, paddingVertical: 14, borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: '#D4F93D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   bannerBtnText: { color: "#111", fontWeight: "900", fontSize: 15 },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 },
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   nutriIconBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(212, 249, 61, 0.1)', justifyContent: 'center', alignItems: 'center' },
   nutriTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: '#FFF', marginLeft: 16 },
   nutriDesc: { color: '#9CA3AF', fontSize: 14, lineHeight: 22, fontWeight: '500', marginBottom: 24 },
-  
+
   nutritionStats: { gap: 14 },
   statBox: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   statValue: { width: 60, fontSize: 13, fontWeight: "700", color: "#F3F4F6" },
